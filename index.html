@@ -199,13 +199,14 @@ const RECIPES={
 ⚠️ Annika: grilled halloumi slices instead of beef. Same rice and vinagrete.
 ⚠️ Spices on side for Renato.`,
 
-  m3:`1. Cut beef into strips. Season with salt, pepper, paprika.
-2. Sear beef in olive oil over high heat until browned all over. Set aside.
+  m3:`1. Cut chicken into strips. Season with salt, pepper, paprika.
+2. Sear chicken in olive oil over high heat until golden all over. Set aside.
 3. Sauté sliced onions and garlic in same pan. Add sliced mushrooms, cook until golden (~8 min).
-4. Return beef. Add dijon mustard and a splash of beef stock, simmer 5 min.
+4. Return chicken. Add dijon mustard and a splash of chicken stock, simmer 5 min.
 5. Lower heat, stir in heavy cream and sour cream. Simmer gently 5 min — do not boil.
 6. Serve over white rice cooked separately.
-⚠️ Annika: make a mushroom-only version in a small pan (same sauce, no beef).`,
+⚠️ Annika: make a mushroom-only version in a small pan (same sauce, no chicken).
+⚠️ Gisele Paiva: no chicken — make her a small beef version with the same sauce.`,
 
   m4:`1. Slice eggplant 1cm thick, salt generously, rest 15 min, pat dry. Brush with oil and grill/roast until tender (200°C, 20 min).
 2. Meat sauce: brown beef with onions and garlic. Add tomato paste, canned tomatoes, cinnamon, allspice, salt, pepper. Simmer 20 min.
@@ -1103,6 +1104,76 @@ function ScheduleTab({meals, setMeals, schedule, setSchedule, logChange}){
 }
 
 // ── Coffee Tab ─────────────────────────────────────────────────────────────
+const TURKEY_TIPS={
+  m1:"🇹🇷 All ingredients are Turkish staples — bulgur, tahini, nar ekşisi, beyaz peynir and olives are in every market. Hummus is sold ready-made in supermarkets. Lavash and pita are at any bakery (fırın).",
+  m2:"🇹🇷 Buy beef at a kasap (butcher) — ask for antrikot (ribeye) or bonfile (sirloin) for grilling. Red wine vinegar = kırmızı şarap sirkesi, available in supermarkets. White rice and green peppers are everywhere.",
+  m3:"🇹🇷 Chicken (tavuk) at any kasap or supermarket. Mushrooms (mantar) — buy fresh in Ekincik market. Heavy cream = krema, sour cream = ekşi krema or substitute with thick süzme yoğurt. Dijon mustard in larger supermarkets (Migros/Carrefour).",
+  m4:"🇹🇷 Eggplant (patlıcan) is a Turkish staple — very fresh and cheap. Ground beef (kıyma) at any kasap. Cinnamon (tarçın) and allspice (yenibahar) are standard spices. Flour (un) and butter (tereyağı) everywhere. Parmesan may need a larger supermarket — substitute with local aged kaşar peyniri.",
+  m5:"🇹🇷 Ground beef (kıyma) at kasap. Spaghetti (spagetti) in all supermarkets. Canned tomatoes (domates konservesi) and tomato paste (salça) are pantry staples. Bay leaves (defne yaprağı) and oregano (kekik) easily found.",
+  m6:"🇹🇷 Pastırma is a Turkish specialty — get it pre-sliced from a deli or market. Beyaz peynir, olives and eggs (yumurta) are everywhere. Buy bread fresh from a fırın each morning.",
+  m7:"🇹🇷 Buy levrek (sea bass) or çipura (sea bream) fresh from local fishermen or the market dock. Dill (dereotu) and parsley (maydanoz) are common fresh herbs. Lemons (limon) everywhere. Olive oil (zeytinyağı) is premium quality in Turkey.",
+  m8:"🇹🇷 Cubed beef (kuşbaşı et) sold ready-cut at kasap. Tomatoes, onions, peppers — all very fresh and local. Cumin (kimyon) is a standard Turkish spice. White rice (beyaz pirinç) at every shop.",
+  m9:"🇹🇷 Buy karides (shrimp) fresh in Göcek — ask at the marina or fish market. Butter (tereyağı) and garlic (sarımsak) everywhere. White wine for cooking at supermarkets or wine shops. Halloumi (hellim) available in Turkish supermarkets.",
+};
+
+function RecipesTab({meals, schedule}){
+  const [openId, setOpenId]=useState(null);
+  const mealCookGroup=Object.fromEntries((schedule||[]).filter(r=>r.mealId).map(r=>[r.mealId,r.cook]));
+
+  return(
+    <div className="max-w-3xl mx-auto p-4">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-xl font-bold text-slate-800">📖 Recipes</h2>
+      </div>
+      <p className="text-sm text-slate-500 mb-5">All 9 cooked meals with full recipes, dietary alternatives and Turkey ingredient tips.</p>
+      <div className="space-y-3">
+        {meals.map(meal=>{
+          const recipe=meal.recipe??(RECIPES[meal.id]||"No recipe yet.");
+          const cookGroup=mealCookGroup[meal.id];
+          const gs=GROUP_STYLE[cookGroup];
+          const tip=TURKEY_TIPS[meal.id];
+          const isOpen=openId===meal.id;
+          return(
+            <div key={meal.id} className="rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white">
+              <button onClick={()=>setOpenId(isOpen?null:meal.id)}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-slate-400 font-medium">{meal.day} · {meal.meal}</span>
+                    {gs&&<span className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ${gs.bg} ${gs.text} border ${gs.border}`}>Group {cookGroup}</span>}
+                  </div>
+                  <div className="font-semibold text-slate-800 mt-0.5">{meal.dish}</div>
+                  {meal.note&&!isOpen&&<p className="text-xs text-amber-600 mt-0.5 truncate">⚠️ {meal.note}</p>}
+                </div>
+                <span className="text-slate-400 text-xs flex-shrink-0">{isOpen?"▲ hide":"▼ recipe"}</span>
+              </button>
+              {isOpen&&(
+                <div className="border-t border-slate-100 px-4 py-4 space-y-4 fade-in">
+                  <p className="text-sm text-slate-600 italic">{meal.desc}</p>
+                  {meal.note&&(
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+                      <span className="font-semibold">⚠️ Dietary notes:</span> {meal.note}
+                    </div>
+                  )}
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">📝 Recipe</h4>
+                    <div className="text-sm text-slate-700 whitespace-pre-line leading-relaxed bg-slate-50 rounded-lg p-3 border border-slate-100">{recipe}</div>
+                  </div>
+                  {tip&&(
+                    <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs text-red-700 leading-relaxed">
+                      {tip}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function CoffeeTab({crew,setCrew,logChange}){
   const update=(id,patch)=>{
     const person=crew.find(x=>x.id===id);
@@ -1452,6 +1523,7 @@ function App(){
   const tabs=[
     {id:"schedule",label:"📋 Schedule", badge:null},
     {id:"coffee",  label:"☕ Coffee",   badge:null},
+    {id:"recipes", label:"📖 Recipes",  badge:null},
     {id:"meals",   label:"🍽️ Meals",    badge:doneMeals?`${doneMeals}/${meals.length}`:null, locked:!!mealsLocked},
     {id:"shopping",label:"🛒 Shopping", badge:shoppingLocked?null:(boughtItems?`${boughtItems}/${shopping.length}`:null), locked:!!shoppingLocked},
   ];
@@ -1490,6 +1562,7 @@ function App(){
         {tab==="shopping"&&<ShoppingTab shopping={shopping} setShopping={setShopping} locked={!!shoppingLocked} logChange={logChange}/>}
         {tab==="schedule"&&<ScheduleTab meals={meals} setMeals={setMeals} schedule={schedule||INIT_SCHEDULE} setSchedule={setSchedule} logChange={logChange}/>}
         {tab==="coffee"  &&<CoffeeTab crew={crew} setCrew={setCrew} logChange={logChange}/>}
+        {tab==="recipes" &&<RecipesTab meals={meals} schedule={schedule||INIT_SCHEDULE}/>}
       </div>
       {showAdmin&&<AdminModal meals={meals} setShopping={setShopping} shoppingLocked={!!shoppingLocked} setShoppingLocked={setShoppingLocked} mealsLocked={!!mealsLocked} setMealsLocked={setMealsLocked} changelog={changelog||[]} setChangelog={setChangelog} logChange={logChange} onClose={()=>setShowAdmin(false)}/>}
     </div>
