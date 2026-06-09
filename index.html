@@ -1189,11 +1189,11 @@ function CoffeeTab({crew,setCrew,logChange}){
                   <EditableText value={p.name} onChange={v=>update(p.id,{name:v})} className="text-sm font-medium text-slate-700 truncate"/>
                 </div>
                 <select className="text-xs py-1 w-full" value={mainType}
-                  onChange={e=>{const v=e.target.value;update(p.id,{coffeeType:v==="tea"?"none":v,tea:v==="tea",cups:v==="none"||v==="tea"?0:p.cups||2});}}>
+                  onChange={e=>{const v=e.target.value;update(p.id,{coffeeType:v==="tea"?"none":v,tea:v==="tea",cups:v==="none"?0:p.cups||1});}}>
                   {typeOpts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
                 </select>
                 <div className="flex items-center gap-1 justify-center">
-                  {hasDrink&&mainType!=="tea"
+                  {hasDrink
                     ?<EditableNumber value={p.cups} onChange={v=>update(p.id,{cups:v})} min={0} step={1}/>
                     :<span className="text-slate-300 text-sm">—</span>}
                   {hasDrink&&<button onClick={()=>update(p.id,{coffeeType:"none",tea:false,cups:0})}
