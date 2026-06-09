@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>⛵ Fethiye 2026 — Trip Planner</title>
+<!-- Supabase JS -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- React + Babel + Tailwind -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8}
+  .tab-btn{transition:all .15s}
+  .tab-btn.active{border-bottom:3px solid #3b82f6;color:#1d4ed8;font-weight:700}
+  select{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:3px 8px}
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#f1f5f9}
+  ::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:3px}
+  .fade-in{animation:fadeIn .2s ease-in}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .pulse{animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  STEP 1 — Paste your Supabase project URL and anon key here
+//  Leave as-is to run in local-only mode (no sharing between devices)
+//
+//  Get these from: Supabase dashboard → Project Settings → API
+// ═══════════════════════════════════════════════════════════════════════════
+const SUPABASE_URL     = 'https://YOUR_PROJECT.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SB_READY = SUPABASE_URL !== 'https://YOUR_PROJECT.supabase.co';
+let sb = null;
+if (SB_READY) {
+  try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
+  catch(e) { console.error("Supabase init failed:", e); }
+}
+</script>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+const ls=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}};
+const ss=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+const uid=()=>Math.random().toString(36).slice(2,9);
+
+// ── static / initial data ────────────────────────────────────────────────────
+const ADMIN_PASS="sail2026";
+const CREW_PROFILES=[
+  {name:"Renato",      fullName:"Renato Filho",       group:"A", role:"Kitty",
+   restrictions:["🌶️ No spicy / pepper"],
+   medicalAllergy:"none", firstTime:"yes (sleeping)",
+   breakfast:"yogurt, fruit, granola, eggs, bread, cheese, ham",
+   foodLikes:"chicken, meat, fish, broccoli, potatoes, tomato, rice",
+   foodDislikes:"pepper / spice",
+   beer:"any", wine:"white / rosé", liquor:"—", coffee:"coffee",
+   nonAlc:"milk, juice", alcoholPerDay:"~4"},
+
+  {name:"Gisele Pinheiro", fullName:"Gisele Pinheiro", group:"A", role:"Kitty",
+   restrictions:["🫘 Dislikes beans"],
+   medicalAllergy:"none", firstTime:"yes (for sleeping)",
+   breakfast:"yogurt, fruit, granola, eggs, bread, cheese",
+   foodLikes:"chicken, broccoli, green beans, potatoes, fish, peppers, tomato, onion, rice",
+   foodDislikes:"beans",
+   beer:"—", wine:"white / rosé", liquor:"—", coffee:"coffee",
+   nonAlc:"milk, juice", alcoholPerDay:"1"},
+
+  {name:"Annika",      fullName:"Annika Jagusch",     group:"A", role:"",
+   restrictions:["🌿 Prefers vegetarian","🧡 Loves regional food","💊 Penicillin allergy"],
+   medicalAllergy:"penicillin (minor)", firstTime:"no",
+   breakfast:"greek yoghurt, granola, fruit",
+   foodLikes:"local / regional food, vegetarian dishes",
+   foodDislikes:"—",
+   beer:"Radler", wine:"white / rosé", liquor:"gin or Cachaça", coffee:"both (coffee & tea)",
+   nonAlc:"juice", alcoholPerDay:"?"},
+
+  {name:"Cüneyt",      fullName:"Cüneyt Özkan",       group:"—", role:"Skipper",
+   restrictions:["🐷 No pork","🚫 No alcohol"],
+   medicalAllergy:"none", firstTime:"no",
+   breakfast:"yogurt, fruit, bread, cheese",
+   foodLikes:"chicken, meat, rice, potatoes, veggies",
+   foodDislikes:"pork",
+   beer:"none", wine:"none", liquor:"none", coffee:"both (coffee & tea)",
+   nonAlc:"Gazoz / Turkish sparkling soda", alcoholPerDay:"0"},
+
+  {name:"Nawal Ali",   fullName:"Nawal Ali",           group:"B", role:"",
+   restrictions:["🐷 No pork","🚫 No alcohol"],
+   medicalAllergy:"none", firstTime:"no",
+   breakfast:"yogurt, fruit, bread, cheese",
+   foodLikes:"chicken, meat, rice, potatoes, veggies",
+   foodDislikes:"pork",
+   beer:"none", wine:"none", liquor:"none", coffee:"both (coffee & tea)",
+   nonAlc:"apple juice or other juice", alcoholPerDay:"0"},
+
+  {name:"Bruno",       fullName:"Bruno Rafael",        group:"B", role:"Co-Skipper",
+   restrictions:["🦐 No seafood"],
+   medicalAllergy:"none", firstTime:"no",
+   breakfast:"yogurt, fruit, granola, ham, eggs, bread, cheese, peanut butter",
+   foodLikes:"anything besides seafood",
+   foodDislikes:"seafood",
+   beer:"none", wine:"—", liquor:"Cachaça / Whiskey", coffee:"coffee",
+   nonAlc:"orange juice / water", alcoholPerDay:"~4"},
+
+  {name:"Julia",       fullName:"Julia Vendematti",    group:"B", role:"",
+   restrictions:["🐷 No pork","🌶️ Loves spicy food"],
+   medicalAllergy:"none", firstTime:"no",
+   breakfast:"eggs, yogurt, fruits, peanut butter, bread",
+   foodLikes:"chicken, beans, hummus, cucumber, tomato, roasted veggies, spicy food",
+   foodDislikes:"pork",
+   beer:"—", wine:"—", liquor:"gin or Cachaça — makes caipirinhas", coffee:"lots of tea + some coffee",
+   nonAlc:"water", alcoholPerDay:"0–4 (avg ~2)"},
+
+  {name:"Gisele Paiva",fullName:"Gisele Paiva M.",     group:"C", role:"Shopping Queen",
+   restrictions:["🍗 No chicken"],
+   medicalAllergy:"none", firstTime:"no",
+   breakfast:"yogurt, fruit, granola, eggs, cheese, ham",
+   foodLikes:"shrimp, red meat, fresh fish, canned tuna, potatoes, pasta, quinoa, roasted veggies, bell peppers",
+   foodDislikes:"chicken",
+   beer:"none", wine:"dry white / rosé / sparkling", liquor:"cachaça / vodka", coffee:"decaf coffee",
+   nonAlc:"water, orange juice, oat milk", alcoholPerDay:"~4"},
+
+  {name:"Camila",      fullName:"Camila Lameiro",      group:"C", role:"Photographer",
+   restrictions:[],
+   medicalAllergy:"none", firstTime:"no",
+   breakfast:"yogurt, fruit, granola, eggs, cheese, ham",
+   foodLikes:"chicken, fish, broccoli, potatoes, tomato, rice",
+   foodDislikes:"—",
+   beer:"none", wine:"both (red & white)", liquor:"none", coffee:"tea",
+   nonAlc:"orange juice / water", alcoholPerDay:"0"},
+
+  {name:"Raoni",       fullName:"Carlos Raoni",        group:"C", role:"Teacher",
+   restrictions:[],
+   medicalAllergy:"none", firstTime:"no",
+   breakfast:"yogurt, fruit, granola, eggs, cheese, ham",
+   foodLikes:"chicken, meat, fish, broccoli, potatoes, tomato, rice",
+   foodDislikes:"—",
+   beer:"none", wine:"both (red & white)", liquor:"none", coffee:"both (coffee & tea)",
+   nonAlc:"orange juice / water", alcoholPerDay:"0"},
+];
+const DIETARY_RULES=CREW_PROFILES; // backwards compat alias
+const GROUP_STYLE={
+  A:{bg:"bg-blue-100",text:"text-blue-800",border:"border-blue-300"},
+  B:{bg:"bg-orange-100",text:"text-orange-800",border:"border-orange-300"},
+  C:{bg:"bg-green-100",text:"text-green-800",border:"border-green-300"},
+};
+const WHEN={
+  D1:{label:"Day 1 · Fethiye",bg:"bg-slate-100",text:"text-slate-700"},
+  FRESH:{label:"Buy fresh locally",bg:"bg-emerald-100",text:"text-emerald-700"},
+  TOP:{label:"Top-up · Ekincik",bg:"bg-amber-100",text:"text-amber-700"},
+};
+
+// ── Cooking/Cleaning schedule (editable via shared state) ────────────────
+// Cook: A=3(m1,m4,m7) · B=3(m2,m5,m8) · C=3(m3,m6,m9)
+// Clean: A=5 · B=5 · C=5 (verified: no consecutive, no cook+clean same slot)
+const INIT_SCHEDULE=[
+  {day:"Day 2",date:"14 Jun, Sun",meal:"Breakfast",type:"self-service",desc:"Self-service — everyone brings ingredients",clean:"A"},
+  {mealId:"m1",cook:"A",clean:"B"},
+  {mealId:"m2",cook:"B",clean:"C"},
+  {day:"Day 3",date:"15 Jun, Mon",meal:"Breakfast",type:"self-service",desc:"Sandwiches on the way (eat while sailing)",clean:"B"},
+  {mealId:"m3",cook:"C",clean:"A"},
+  {mealId:"m4",cook:"A",clean:"C"},
+  {day:"Day 4",date:"16 Jun, Tue",meal:"Breakfast",type:"self-service",desc:"Self-service",clean:"C"},
+  {day:"Day 4",date:"16 Jun, Tue",meal:"Lunch",type:"restaurant",desc:"Restaurant in Dalyan (Belediye Café)"},
+  {mealId:"m5",cook:"B",clean:"A"},
+  {day:"Day 5",date:"17 Jun, Wed",meal:"Breakfast",type:"self-service",desc:"Self-service",clean:"B"},
+  {mealId:"m6",cook:"C",clean:"B"},
+  {mealId:"m7",cook:"A",clean:"C"},
+  {day:"Day 6",date:"18 Jun, Thu",meal:"Breakfast",type:"self-service",desc:"Self-service",clean:"C"},
+  {day:"Day 6",date:"18 Jun, Thu",meal:"Lunch",type:"restaurant",desc:"Restaurants at Kaya Köy"},
+  {mealId:"m8",cook:"B",clean:"A"},
+  {day:"Day 7",date:"19 Jun, Fri",meal:"Breakfast",type:"self-service",desc:"Self-service",clean:"A"},
+  {mealId:"m9",cook:"C",clean:"B"},
+];
+
+// ── Recipe text per meal ─────────────────────────────────────────────────────
+const RECIPES={
+  m1:`1. Soak fine bulgur in hot water (1:1.5 ratio) for 20 min, fluff with a fork.
+2. Mix in spring onions, tomato paste, pomegranate molasses, cumin, olive oil, salt. Toss well.
+3. Add lemon juice, taste and adjust. Chill if possible.
+4. Cacık: combine yogurt + diced cucumber + dried mint + minced garlic + salt.
+5. Arrange mezze board: hummus, cacık, olives, beyaz peynir, halloumi (grill slices until charred).
+6. Serve everything with warm pita or lavash.
+⚠️ Annika: fully plant-based if desired — skip halloumi or serve on side.`,
+
+  m2:`1. Season beef well with salt, pepper, garlic powder. Marinate 30+ min if possible.
+2. Grill over high heat — 3–4 min per side for medium. Rest 5 min before slicing.
+3. Vinagrete: finely dice 2 tomatoes, 1 onion, 1 green pepper. Dress with red wine vinegar, olive oil, salt. Rest 10 min.
+4. Cook white rice (2 parts water : 1 part rice, simmer 18 min covered).
+5. Serve sliced beef over rice with vinagrete on the side.
+⚠️ Annika: grilled halloumi slices instead of beef. Same rice and vinagrete.
+⚠️ Spices on side for Renato.`,
+
+  m3:`1. Cut beef into strips. Season with salt, pepper, paprika.
+2. Sear beef in olive oil over high heat until browned all over. Set aside.
+3. Sauté sliced onions and garlic in same pan. Add sliced mushrooms, cook until golden (~8 min).
+4. Return beef. Add dijon mustard and a splash of beef stock, simmer 5 min.
+5. Lower heat, stir in heavy cream and sour cream. Simmer gently 5 min — do not boil.
+6. Serve over white rice cooked separately.
+⚠️ Annika: make a mushroom-only version in a small pan (same sauce, no beef).`,
+
+  m4:`1. Slice eggplant 1cm thick, salt generously, rest 15 min, pat dry. Brush with oil and grill/roast until tender (200°C, 20 min).
+2. Meat sauce: brown beef with onions and garlic. Add tomato paste, canned tomatoes, cinnamon, allspice, salt, pepper. Simmer 20 min.
+3. Béchamel: melt butter, whisk in flour (2 min). Gradually add warm milk, whisking constantly. Season with nutmeg and salt. Stir until thick enough to coat a spoon.
+4. Layer in a deep pan: eggplant → meat sauce → eggplant → béchamel. Top with parmesan.
+5. Bake 200°C for 35–40 min until golden brown. Rest 15 min before cutting.
+⚠️ Annika leads this dish. Make a small separate tray: eggplant + béchamel only (no meat).
+⚠️ Spices on side for Renato.`,
+
+  m5:`1. Sauté diced onions, garlic, carrots in olive oil ~8 min until soft.
+2. Add ground beef, break up, brown well. Season with salt, pepper, paprika.
+3. Stir in tomato paste 2 min. Add canned tomatoes, bay leaves, oregano. Simmer 30 min.
+4. Cook spaghetti al dente. Reserve 1 cup pasta water before draining.
+5. Toss pasta with sauce, loosening with pasta water. Finish with parmesan.
+6. Shepherd's salad: dice tomatoes, cucumber, green pepper, onion — dress with olive oil, lemon, salt.
+⚠️ Annika: extra pasta + grilled veg. Isot on side for Julia.`,
+
+  m6:`1. Boil eggs ahead of time (hard-boiled, 10 min). Cool and peel.
+2. Arrange on a large board: pastırma slices, smoked/tinned fish, beyaz peynir, olives, boiled eggs.
+3. Slice tomatoes and cucumber. Put out bread.
+4. Set up at the cockpit table — eat at sea!
+⚡ No cooking needed. Enjoy the 35 NM sailing day.
+⚠️ Bruno: pastırma and beyaz peynir are his alternatives (no fish needed today).`,
+
+  m7:`1. Score fish 3× on each side. Stuff cavity with dill, lemon slices, garlic cloves.
+2. Rub skin with olive oil, salt, pepper.
+3. Grill on hot grill/pan 5–6 min per side until skin is crisp and flesh flakes.
+4. Rest 5 min before serving with lemon wedges.
+5. Herb salad: toss parsley, diced tomatoes, lemon juice, olive oil, salt.
+⚠️ Bruno: pasta aglio e olio — boil spaghetti, toss with garlic sautéed in olive oil + pul biber + parsley.
+💡 Buy fish fresh in Ekincik or Gemiler (~9 portions, Bruno gets pasta).`,
+
+  m8:`1. Cut beef into small cubes (~2 cm). Season with salt, pepper, cumin.
+2. Brown beef in batches in hot olive oil. Set aside.
+3. Sauté onions and garlic until soft. Add diced green peppers, cook 3 min.
+4. Add tomato paste, cook 2 min. Add canned tomatoes and beef back in.
+5. Simmer 25–30 min until beef is tender and sauce thickens. Season to taste.
+6. Serve over white rice. Garnish with chopped parsley.
+⚠️ Annika: replace beef with mushrooms, peppers and chickpeas (same sauce base).`,
+
+  m9:`1. Peel and devein shrimp (or use pre-cleaned).
+2. Melt butter in a large pan over high heat. Add minced garlic, cook 1 min until fragrant.
+3. Add shrimp in a single layer. Cook 2 min per side until pink.
+4. Deglaze with white wine, let bubble 30 seconds.
+5. Finish with lemon juice, chopped parsley, salt. Serve immediately over white rice.
+⚠️ Bruno: grill halloumi slices until charred. Serve with same garlic butter and rice.
+⚠️ Annika: replace shrimp with halloumi, same garlic butter sauce.
+💡 Buy shrimp fresh in Göcek or Karacaören area.`,
+};
+
+// ── Meal → Shopping item IDs mapping ────────────────────────────────────────
+// Editing qty in recipe modal updates the master shopping list
+const MEAL_INGREDIENTS={
+  m1:["s37","s41","s50","s49","s26","s46","s47","s9","s10","s11","s18","s28","s33","s48","s25","s56","s57","s58"],
+  m2:["s1","s36","s20","s17","s22","s23","s48","s56","s57","s61","s10"], // Churrasco + vinagrete + alt halloumi
+  m3:["s2","s24","s12","s13","s51","s36","s20","s21","s48","s61","s56","s57"], // Chicken Stroganoff
+  m4:["s1","s19","s15","s14","s39","s44","s45","s20","s21","s16","s48","s62","s63","s56","s57"],
+  m5:["s1","s44","s45","s35","s20","s21","s23","s31","s16","s48","s56","s57","s61","s63"], // Spaghetti Bolognese
+  m6:["s4","s9","s47","s8","s17","s18","s34"],
+  m7:["s5","s25","s29","s27","s48","s56","s57","s35"],
+  m8:["s1","s44","s45","s20","s21","s22","s36","s27","s48","s58","s56","s57"], // Picadinho de Carne
+  m9:["s6","s14","s21","s36","s55","s25","s27","s56","s57","s10"], // Camarão na Manteiga + alt halloumi
+};
+
+const INIT_MEALS=[
+  {id:"m1",day:"Day 2",date:"14 Jun, Sun",meal:"Lunch",group:"A",dish:"Kısır + Mezze Board",desc:"Bulgur salad, hummus, cacık, olives, beyaz peynir, halloumi, veggies, bread. No cooking needed.",tags:["🌿 Turkish","🥗 Veggie-friendly"],note:"Fully plant-based ✓ — safe for everyone.",done:false},
+  {id:"m2",day:"Day 2",date:"14 Jun, Sun",meal:"Dinner",group:"B",dish:"🔥 Grilled Beef + Rice & Vinaigrette",desc:"Grilled beef with white rice and vinagrete (tomatoes, onion, green pepper, vinegar, olive oil).",tags:[],note:"Annika: grilled halloumi + rice + vinaigrette (no beef). Renato: keep spices on the side. Julia: isot/chilli available.",done:false},
+  {id:"m3",day:"Day 3",date:"15 Jun, Mon",meal:"Lunch",group:"C",dish:"🍗 Chicken Stroganoff + Rice",desc:"Chicken stroganoff with mushrooms, cream and white rice.",tags:[],note:"Annika: mushroom-only version (same sauce, no chicken).",done:false},
+  {id:"m4",day:"Day 3",date:"15 Jun, Mon",meal:"Dinner",group:"A",dish:"🍆 Moussaka + Salad",desc:"Layered eggplant, beef mince, béchamel. Annika leads.",tags:[],note:"Renato: no spicy seasoning in the main dish.",done:false},
+  {id:"m5",day:"Day 4",date:"16 Jun, Tue",meal:"Dinner",group:"B",dish:"🍝 Spaghetti Bolognese + Salad",desc:"Beef bolognese with spaghetti and shepherd's salad.",tags:[],note:"Annika: pasta with grilled veggies instead of bolognese. Julia: isot pepper on the side.",done:false},
+  {id:"m6",day:"Day 5",date:"17 Jun, Wed",meal:"Lunch",group:"C",dish:"🌊 No-cook Platter (35 NM sailing day)",desc:"Pastırma, beyaz peynir, olives, boiled eggs, tomatoes, cucumber, bread. Eat at sea!",tags:[],note:"35 NM sailing day — cold food only. Bruno: pastırma + cheese + eggs (no seafood). Annika: cheese + olives + eggs + veg ✓.",done:false},
+  {id:"m7",day:"Day 5",date:"17 Jun, Wed",meal:"Dinner",group:"A",dish:"🐟 Grilled Fish + Couscous with Herbs & Lemon + Herb Salad",desc:"Grilled whole fish (sea bass/bream) with herbed couscous (lemon, parsley, mint) and herb salad.",tags:[],note:"Bruno + Annika: grilled halloumi instead of fish. Buy fish fresh on the day.",done:false},
+  {id:"m8",day:"Day 6",date:"18 Jun, Thu",meal:"Dinner",group:"B",dish:"🥩 Beef Picadinho + Rice",desc:"Brazilian-style beef picadinho with tomatoes, onions, peppers and white rice.",tags:[],note:"Annika: mushroom + pepper version (same sauce, no beef). Julia: extra chilli/isot on the side.",done:false},
+  {id:"m9",day:"Day 7",date:"19 Jun, Fri",meal:"Lunch",group:"C",dish:"🦐 Garlic Butter Shrimp + Rice",desc:"Fresh shrimp in garlic butter sauce with white rice.",tags:[],note:"Bruno: grilled chicken in garlic butter instead of shrimp. Buy shrimp fresh in Göcek.",done:false},
+];
+
+const INIT_SHOPPING=[
+  {id:"s1",cat:"🥩 Meat & Poultry",item:"Ground beef (lean)",qty:2.5,unit:"kg",when:"D1",usedIn:"Bolognese · Moussaka",notes:"~1.2 kg per dish",checked:false},
+  {id:"s2",cat:"🥩 Meat & Poultry",item:"Chicken breast/thigh",qty:1.5,unit:"kg",when:"D1",usedIn:"Strogonoff de Frango (Day 4)",notes:"Boneless",checked:false},
+  {id:"s3",cat:"🥩 Meat & Poultry",item:"Kangal Sucuk",qty:500,unit:"g",when:"D1",usedIn:"Day 3 Lunch · breakfasts",notes:"Garlic beef sausage — no pork",checked:false},
+  {id:"s4",cat:"🥩 Meat & Poultry",item:"Pastırma",qty:400,unit:"g",when:"D1",usedIn:"Day 3 Lunch · Day 5 platter · breakfasts",notes:"Cured beef; refrigerate",checked:false},
+  {id:"s5",cat:"🐟 Seafood",item:"Fresh whole fish (sea bass/sea bream)",qty:3,unit:"kg",when:"FRESH",usedIn:"Day 5 Dinner — Grilled Fish",notes:"Buy in Ekincik/Gemiler. ~9 portions (Bruno gets pasta)",checked:false},
+  {id:"s6",cat:"🐟 Seafood",item:"Fresh shrimp",qty:1.5,unit:"kg",when:"FRESH",usedIn:"Day 6 Dinner — Garlic Butter Shrimp",notes:"Buy in Göcek/Karacaören. Bruno gets halloumi",checked:false},
+  {id:"s7",cat:"🐟 Seafood",item:"Smoked/tinned sardines or mackerel",qty:3,unit:"tins",when:"D1",usedIn:"Day 5 Lunch — no-cook platter",notes:"Backup if no fresh fish",checked:false},
+  {id:"s8",cat:"🧀 Dairy & Eggs",item:"Eggs",qty:84,unit:"units",when:"D1",usedIn:"Day 3L · Day 5L · Day 7L · Moussaka · breakfasts",notes:"~7 dozen. Buy 5 doz Day 1, top-up 2 in Ekincik",checked:false},
+  {id:"s9",cat:"🧀 Dairy & Eggs",item:"Beyaz peynir (white cheese)",qty:1.3,unit:"kg",when:"D1",usedIn:"Breakfasts · Day 2L mezze · Day 5L platter",notes:"",checked:false},
+  {id:"s10",cat:"🧀 Dairy & Eggs",item:"Halloumi",qty:700,unit:"g",when:"D1",usedIn:"Day 2L mezze grill · Bruno Days 5 & 6",notes:"",checked:false},
+  {id:"s11",cat:"🧀 Dairy & Eggs",item:"Yogurt (plain full-fat)",qty:2,unit:"kg",when:"D1",usedIn:"Cacık · breakfasts",notes:"",checked:false},
+  {id:"s12",cat:"🧀 Dairy & Eggs",item:"Heavy cream",qty:400,unit:"ml",when:"D1",usedIn:"Strogonoff de Frango",notes:"",checked:false},
+  {id:"s13",cat:"🧀 Dairy & Eggs",item:"Sour cream / crème fraîche",qty:200,unit:"g",when:"D1",usedIn:"Strogonoff de Frango",notes:"",checked:false},
+  {id:"s14",cat:"🧀 Dairy & Eggs",item:"Butter (unsalted)",qty:400,unit:"g",when:"D1",usedIn:"Béchamel · Garlic Butter Shrimp",notes:"",checked:false},
+  {id:"s15",cat:"🧀 Dairy & Eggs",item:"UHT milk (long-life)",qty:7,unit:"L",when:"D1",usedIn:"Béchamel · coffee station",notes:"Stable in heat",checked:false},
+  {id:"s16",cat:"🧀 Dairy & Eggs",item:"Parmesan (block)",qty:200,unit:"g",when:"D1",usedIn:"Bolognese topping · Moussaka",notes:"",checked:false},
+  {id:"s17",cat:"🥬 Fresh Produce",item:"Tomatoes",qty:4,unit:"kg",when:"D1",usedIn:"Multiple dishes + breakfasts",notes:"Top-up in Ekincik",checked:false},
+  {id:"s18",cat:"🥬 Fresh Produce",item:"Cucumbers",qty:10,unit:"units",when:"D1",usedIn:"Cacık · salads · breakfasts",notes:"Top-up later",checked:false},
+  {id:"s19",cat:"🥬 Fresh Produce",item:"Eggplant / aubergine",qty:8,unit:"large",when:"D1",usedIn:"Moussaka (Day 3D)",notes:"Cook within 3 days",checked:false},
+  {id:"s20",cat:"🥬 Fresh Produce",item:"Onions",qty:2,unit:"kg",when:"D1",usedIn:"All dishes",notes:"",checked:false},
+  {id:"s21",cat:"🥬 Fresh Produce",item:"Garlic",qty:4,unit:"heads",when:"D1",usedIn:"All dishes",notes:"",checked:false},
+  {id:"s22",cat:"🥬 Fresh Produce",item:"Green peppers",qty:12,unit:"units",when:"D1",usedIn:"Menemen · Bolognese · Sucuk & eggs",notes:"Top-up later",checked:false},
+  {id:"s23",cat:"🥬 Fresh Produce",item:"Red peppers",qty:4,unit:"units",when:"D1",usedIn:"Bolognese · salads",notes:"",checked:false},
+  {id:"s24",cat:"🥬 Fresh Produce",item:"Mushrooms",qty:600,unit:"g",when:"TOP",usedIn:"Strogonoff (Day 4) incl. Annika's version",notes:"Buy in Ekincik — don't stock Day 1",checked:false},
+  {id:"s25",cat:"🥬 Fresh Produce",item:"Lemons",qty:12,unit:"units",when:"D1",usedIn:"Multiple dishes",notes:"",checked:false},
+  {id:"s26",cat:"🥬 Fresh Produce",item:"Spring onions",qty:4,unit:"bunches",when:"D1",usedIn:"Kısır · Mercimek Köfte",notes:"",checked:false},
+  {id:"s27",cat:"🥬 Fresh Produce",item:"Fresh parsley",qty:4,unit:"bunches",when:"D1",usedIn:"Multiple dishes",notes:"Top-up along coast",checked:false},
+  {id:"s28",cat:"🥬 Fresh Produce",item:"Fresh mint",qty:2,unit:"bunches",when:"D1",usedIn:"Cacık · breakfasts",notes:"",checked:false},
+  {id:"s29",cat:"🥬 Fresh Produce",item:"Fresh dill",qty:2,unit:"bunches",when:"FRESH",usedIn:"Day 5D Grilled Fish",notes:"Buy with fish on Day 5",checked:false},
+  {id:"s30",cat:"🥬 Fresh Produce",item:"Lettuce / arugula",qty:3,unit:"heads",when:"D1",usedIn:"Salads",notes:"Top-up later",checked:false},
+  {id:"s31",cat:"🥬 Fresh Produce",item:"Carrots",qty:4,unit:"units",when:"D1",usedIn:"Bolognese",notes:"",checked:false},
+  {id:"s32",cat:"🥬 Fresh Produce",item:"Seasonal fruit",qty:3,unit:"kg",when:"D1",usedIn:"Breakfasts · snacks",notes:"Top-up daily",checked:false},
+  {id:"s33",cat:"🍞 Bread & Bakery",item:"Pita / lavash",qty:20,unit:"portions",when:"D1",usedIn:"Day 2L mezze · breakfasts",notes:"Stock flatbreads for later days",checked:false},
+  {id:"s34",cat:"🍞 Bread & Bakery",item:"Bread loaves",qty:6,unit:"loaves",when:"D1",usedIn:"Breakfasts · Day 3L · Day 7L",notes:"Buy fresh daily where possible",checked:false},
+  {id:"s35",cat:"🌾 Dry Goods & Grains",item:"Spaghetti / pasta",qty:1.5,unit:"kg",when:"D1",usedIn:"Bolognese · Bruno Day 5D",notes:"",checked:false},
+  {id:"s36",cat:"🌾 Dry Goods & Grains",item:"White rice",qty:2,unit:"kg",when:"D1",usedIn:"Strogonoff · Garlic Butter Shrimp",notes:"",checked:false},
+  {id:"s37",cat:"🌾 Dry Goods & Grains",item:"Fine bulgur wheat",qty:500,unit:"g",when:"D1",usedIn:"Kısır · Mercimek Köfte",notes:"",checked:false},
+  {id:"s38",cat:"🌾 Dry Goods & Grains",item:"Red lentils",qty:300,unit:"g",when:"D1",usedIn:"Mercimek Köfte (flotilla night)",notes:"",checked:false},
+  {id:"s39",cat:"🌾 Dry Goods & Grains",item:"Plain flour",qty:200,unit:"g",when:"D1",usedIn:"Moussaka béchamel",notes:"",checked:false},
+  {id:"s40",cat:"🌾 Dry Goods & Grains",item:"Sugar",qty:500,unit:"g",when:"D1",usedIn:"Coffee · tea",notes:"",checked:false},
+  {id:"s41",cat:"🌾 Dry Goods & Grains",item:"Tahini (tahin)",qty:500,unit:"g",when:"D1",usedIn:"Breakfast with pekmez · Kısır",notes:"",checked:false},
+  {id:"s42",cat:"🌾 Dry Goods & Grains",item:"Pekmez (grape molasses)",qty:300,unit:"g",when:"D1",usedIn:"Breakfast spread",notes:"",checked:false},
+  {id:"s43",cat:"🌾 Dry Goods & Grains",item:"Tahini halva w/ pistachios",qty:400,unit:"g",when:"D1",usedIn:"Dessert / breakfasts",notes:"",checked:false},
+  {id:"s44",cat:"🥫 Canned & Preserved",item:"Canned tomatoes (400g tins)",qty:6,unit:"tins",when:"D1",usedIn:"Bolognese (×3) · Moussaka (×2) · spare",notes:"",checked:false},
+  {id:"s45",cat:"🥫 Canned & Preserved",item:"Tomato paste",qty:2,unit:"jars (200g)",when:"D1",usedIn:"Multiple dishes",notes:"",checked:false},
+  {id:"s46",cat:"🥫 Canned & Preserved",item:"Hummus",qty:2,unit:"jars (200g)",when:"D1",usedIn:"Day 2L mezze",notes:"Or make fresh",checked:false},
+  {id:"s47",cat:"🥫 Canned & Preserved",item:"Olives (mixed black & green)",qty:1,unit:"kg",when:"D1",usedIn:"Breakfasts · mezze · platters",notes:"",checked:false},
+  {id:"s48",cat:"🫙 Condiments & Pantry",item:"Olive oil (extra virgin)",qty:1.5,unit:"L",when:"D1",usedIn:"All dishes",notes:"",checked:false},
+  {id:"s49",cat:"🫙 Condiments & Pantry",item:"Biber salçası (red pepper paste)",qty:1,unit:"jar",when:"D1",usedIn:"Kısır · Mercimek Köfte",notes:"",checked:false},
+  {id:"s50",cat:"🫙 Condiments & Pantry",item:"Nar ekşisi (pomegranate molasses)",qty:1,unit:"bottle",when:"D1",usedIn:"Kısır · salad dressings",notes:""},
+  {id:"s51",cat:"🫙 Condiments & Pantry",item:"Dijon mustard",qty:1,unit:"jar",when:"D1",usedIn:"Strogonoff de Frango",notes:"",checked:false},
+  {id:"s52",cat:"🫙 Condiments & Pantry",item:"Chicken stock cubes",qty:4,unit:"cubes",when:"D1",usedIn:"Strogonoff de Frango",notes:"",checked:false},
+  {id:"s53",cat:"🫙 Condiments & Pantry",item:"Jam (strawberry or apricot)",qty:2,unit:"jars",when:"D1",usedIn:"Breakfasts",notes:"",checked:false},
+  {id:"s54",cat:"🫙 Condiments & Pantry",item:"Honey",qty:1,unit:"jar (500g)",when:"D1",usedIn:"Breakfasts",notes:"",checked:false},
+  {id:"s55",cat:"🫙 Condiments & Pantry",item:"White wine (cooking)",qty:1,unit:"small bottle",when:"D1",usedIn:"Garlic Butter Shrimp",notes:"",checked:false},
+  {id:"s56",cat:"🌶️ Spices & Dried Herbs",item:"Salt (coarse sea salt)",qty:1,unit:"pack",when:"D1",usedIn:"All dishes",notes:"",checked:false},
+  {id:"s57",cat:"🌶️ Spices & Dried Herbs",item:"Black pepper",qty:1,unit:"pack",when:"D1",usedIn:"All dishes",notes:"",checked:false},
+  {id:"s58",cat:"🌶️ Spices & Dried Herbs",item:"Cumin (kimyon)",qty:1,unit:"pack",when:"D1",usedIn:"Kısır · Mercimek Köfte",notes:"",checked:false},
+  {id:"s59",cat:"🌶️ Spices & Dried Herbs",item:"Pul biber (mild flakes)",qty:1,unit:"pack",when:"D1",usedIn:"Menemen · general",notes:"On side for Renato",checked:false},
+  {id:"s60",cat:"🌶️ Spices & Dried Herbs",item:"Isot biber (smoky dark flakes)",qty:1,unit:"pack",when:"D1",usedIn:"Julia's preference",notes:"On side",checked:false},
+  {id:"s61",cat:"🌶️ Spices & Dried Herbs",item:"Sweet paprika",qty:1,unit:"pack",when:"D1",usedIn:"Strogonoff · Bolognese",notes:"",checked:false},
+  {id:"s62",cat:"🌶️ Spices & Dried Herbs",item:"Ground cinnamon + allspice",qty:1,unit:"pack each",when:"D1",usedIn:"Moussaka",notes:"",checked:false},
+  {id:"s63",cat:"🌶️ Spices & Dried Herbs",item:"Dried nutmeg + oregano + bay leaves",qty:1,unit:"pack each",when:"D1",usedIn:"Béchamel · Bolognese",notes:"",checked:false},
+  {id:"s64",cat:"☕ Coffee & Tea Station",item:"Ground filter coffee",qty:500,unit:"g",when:"D1",usedIn:"Morning coffee — 7 drinkers",notes:"",checked:false},
+  {id:"s65",cat:"☕ Coffee & Tea Station",item:"Nespresso pods — regular",qty:100,unit:"pods",when:"D1",usedIn:"Daily espresso — 7 drinkers",notes:"7 × 2 × 7 days = 98 + buffer",checked:false},
+  {id:"s66",cat:"☕ Coffee & Tea Station",item:"Nespresso pods — DECAF ❗",qty:20,unit:"pods",when:"D1",usedIn:"Gisele Paiva only",notes:"2/day × 7 days + buffer",checked:false},
+  {id:"s67",cat:"☕ Coffee & Tea Station",item:"Instant coffee (frappes)",qty:200,unit:"g",when:"D1",usedIn:"Icy afternoon frappes",notes:"",checked:false},
+  {id:"s68",cat:"☕ Coffee & Tea Station",item:"Black tea bags (Turkish çay)",qty:40,unit:"bags",when:"D1",usedIn:"Raoni · Camila · general",notes:"",checked:false},
+  {id:"s69",cat:"☕ Coffee & Tea Station",item:"Herbal / mint tea bags",qty:20,unit:"bags",when:"D1",usedIn:"General",notes:"",checked:false},
+  {id:"s70",cat:"☕ Coffee & Tea Station",item:"UHT milk for coffee (extra)",qty:4,unit:"L",when:"D1",usedIn:"Coffee station",notes:"",checked:false},
+  {id:"s71",cat:"🍿 Snacks",item:"Chips (assorted)",qty:6,unit:"large bags",when:"D1",usedIn:"On-deck snacking",notes:"Mix of flavours",checked:false},
+  {id:"s72",cat:"🍿 Snacks",item:"Mixed Turkish nuts",qty:1,unit:"kg",when:"D1",usedIn:"On-deck snacking",notes:"",checked:false},
+  {id:"s73",cat:"🍿 Snacks",item:"Salty crackers ❗",qty:3,unit:"packs",when:"D1",usedIn:"Seasickness + snacking",notes:"Keep accessible at all times",checked:false},
+  {id:"s74",cat:"🍿 Snacks",item:"Sunflower seeds (çekirdek)",qty:500,unit:"g",when:"D1",usedIn:"On-deck snacking",notes:"",checked:false},
+  {id:"s75",cat:"🍿 Snacks",item:"Dried fruit mix + energy bars",qty:1,unit:"kg + 10 bars",when:"D1",usedIn:"Snacking · sailing days",notes:"",checked:false},
+  {id:"s76",cat:"💧 Beverages & Water",item:"Still water (large bottles)",qty:245,unit:"L",when:"D1",usedIn:"Drinking + cooking all week",notes:"3.5L/person/day × 10 × 7. Refill at each marina",checked:false},
+  {id:"s77",cat:"💧 Beverages & Water",item:"Sparkling water",qty:12,unit:"L",when:"D1",usedIn:"Meals",notes:"",checked:false},
+  {id:"s78",cat:"💧 Beverages & Water",item:"Soft drinks / juices",qty:24,unit:"cans/btls",when:"D1",usedIn:"General",notes:"Assorted",checked:false},
+  {id:"s79",cat:"💧 Beverages & Water",item:"Sports / electrolyte drinks",qty:12,unit:"bottles",when:"D1",usedIn:"Sailing days (Days 3 & 5)",notes:"",checked:false},
+];
+
+const INIT_CREW=[
+  {id:"c1",name:"Nawal Ali",group:"B",coffeeType:"filter",cups:1,tea:false,extras:[{type:"nespresso",cups:2}]},
+  {id:"c2",name:"Bruno Rafael",group:"B",coffeeType:"filter",cups:1,tea:false,extras:[{type:"nespresso",cups:2}]},
+  {id:"c3",name:"Julia",group:"B",coffeeType:"filter",cups:1,tea:false,extras:[{type:"nespresso",cups:2}]},
+  {id:"c4",name:"Gisele Paiva",group:"C",coffeeType:"nespresso-decaf",cups:2,tea:false,extras:[]},
+  {id:"c5",name:"Camila",group:"C",coffeeType:"none",cups:0,tea:true,extras:[]},
+  {id:"c6",name:"Raoni",group:"C",coffeeType:"none",cups:0,tea:true,extras:[]},
+  {id:"c7",name:"Renato",group:"A",coffeeType:"filter",cups:1,tea:false,extras:[{type:"nespresso",cups:2}]},
+  {id:"c8",name:"Gisele Pinheiro",group:"A",coffeeType:"filter",cups:1,tea:false,extras:[{type:"nespresso",cups:2}]},
+  {id:"c9",name:"Annika",group:"A",coffeeType:"filter",cups:1,tea:false,extras:[{type:"nespresso",cups:2}]},
+  {id:"c10",name:"Cüneyt (Skipper)",group:"—",coffeeType:"filter",cups:1,tea:false,extras:[{type:"nespresso",cups:2}]},
+];
+
+// ── Supabase shared state hook ────────────────────────────────────────────────
+function useShared(key, init) {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    if (!sb) {
+      setData(ls(key, init));
+      return;
+    }
+    // Initial fetch
+    sb.from('sailing_data').select('value').eq('key', key).single().then(({data: row, error}) => {
+      if (row) {
+        setData(row.value);
+      } else {
+        // First run — seed with defaults
+        sb.from('sailing_data').upsert({key, value: init});
+        setData(init);
+      }
+    });
+    // Realtime subscription
+    const channel = sb.channel('sailing_' + key)
+      .on('postgres_changes', {event: '*', schema: 'public', table: 'sailing_data', filter: `key=eq.${key}`},
+        (payload) => { if (payload.new?.value !== undefined) setData(payload.new.value); })
+      .subscribe();
+    return () => sb.removeChannel(channel);
+  }, []);
+
+  const update = useCallback((fn) => {
+    setData(prev => {
+      if (prev === null) return prev;
+      const next = typeof fn === 'function' ? fn(prev) : fn;
+      if (sb) sb.from('sailing_data').upsert({key, value: next}).catch(e => console.error(e));
+      else ss(key, next);
+      return next;
+    });
+  }, [key]);
+
+  return [data, update];
+}
+
+// ── Supabase connection indicator ─────────────────────────────────────────────
+function useSyncStatus() {
+  const [status, setStatus] = useState(SB_READY ? 'connecting' : 'local');
+  useEffect(() => {
+    if (!sb) return;
+    const channel = sb.channel('_status_ping')
+      .subscribe((s) => {
+        if (s === 'SUBSCRIBED') setStatus('synced');
+        else if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT') setStatus('offline');
+      });
+    return () => sb.removeChannel(channel);
+  }, []);
+  return status;
+}
+
+// ── Inline editable components ─────────────────────────────────────────────
+function EditableText({value,onChange,className="",multiline=false,placeholder=""}){
+  const [editing,setEditing]=useState(false);
+  const [draft,setDraft]=useState(value);
+  const ref=useRef();
+  useEffect(()=>setDraft(value),[value]);
+  const commit=()=>{setEditing(false);if(draft!==value)onChange(draft);};
+  if(!editing)return(
+    <span className={`cursor-pointer hover:bg-yellow-50 hover:outline hover:outline-1 hover:outline-yellow-300 rounded px-0.5 ${className}`}
+      title="Click to edit" onClick={()=>{setEditing(true);setTimeout(()=>ref.current?.focus(),50)}}>
+      {value||<span className="text-gray-400 italic">{placeholder||"(click to edit)"}</span>}
+    </span>
+  );
+  if(multiline)return(
+    <textarea ref={ref} className={`w-full border rounded p-1 text-sm ${className}`} value={draft} rows={3}
+      onChange={e=>setDraft(e.target.value)} onBlur={commit}
+      onKeyDown={e=>e.key==="Escape"&&(setDraft(value),setEditing(false))}/>
+  );
+  return(
+    <input ref={ref} className={`border rounded px-1 py-0.5 text-sm w-full ${className}`} value={draft} placeholder={placeholder}
+      onChange={e=>setDraft(e.target.value)} onBlur={commit}
+      onKeyDown={e=>{if(e.key==="Enter")commit();if(e.key==="Escape"){setDraft(value);setEditing(false);}}}/>
+  );
+}
+
+function EditableNumber({value,onChange,min=0,step=0.5}){
+  const [editing,setEditing]=useState(false);
+  const [draft,setDraft]=useState(value);
+  const ref=useRef();
+  useEffect(()=>setDraft(value),[value]);
+  const commit=()=>{setEditing(false);const n=parseFloat(draft);if(!isNaN(n)&&n!==value)onChange(n);};
+  if(!editing)return(
+    <span className="cursor-pointer font-bold hover:bg-yellow-50 hover:outline hover:outline-1 hover:outline-yellow-300 rounded px-1"
+      title="Click to edit qty" onClick={()=>{setEditing(true);setTimeout(()=>ref.current?.focus(),50)}}>
+      {value}
+    </span>
+  );
+  return(
+    <input ref={ref} type="number" min={min} step={step} className="border rounded px-1 py-0.5 w-16 text-sm"
+      value={draft} onChange={e=>setDraft(e.target.value)} onBlur={commit}
+      onKeyDown={e=>{if(e.key==="Enter")commit();if(e.key==="Escape"){setDraft(value);setEditing(false);}}}/>
+  );
+}
+
+// ── Setup Banner (Supabase) ───────────────────────────────────────────────────
+function SetupBanner(){
+  const [open,setOpen]=useState(false);
+  if(SB_READY) return null;
+  return(
+    <div className="bg-amber-50 border-b border-amber-300">
+      <div className="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between">
+        <span className="text-sm text-amber-800">
+          🔶 <strong>Running in local mode</strong> — changes are not shared. Add Supabase to sync across all crew.
+        </span>
+        <button onClick={()=>setOpen(true)} className="text-xs bg-amber-600 text-white px-3 py-1 rounded-lg hover:bg-amber-700 ml-3 flex-shrink-0">
+          Setup guide
+        </button>
+      </div>
+      {open&&(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={()=>setOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto fade-in" onClick={e=>e.stopPropagation()}>
+            <div className="p-6">
+              <h3 className="font-bold text-lg text-slate-800 mb-4">🔌 Supabase Setup — 5 minutes</h3>
+              <ol className="space-y-4 text-sm text-slate-700">
+                {[
+                  ["Create a Supabase project","Go to supabase.com → sign in → New project → choose a name (e.g. fethiye-2026) → set a DB password → Create project. Wait ~1 min."],
+                  ["Create the data table","In the left sidebar: SQL Editor → New query → paste and run:\n\nCREATE TABLE sailing_data (\n  key text PRIMARY KEY,\n  value jsonb NOT NULL\n);\nALTER PUBLICATION supabase_realtime ADD TABLE sailing_data;"],
+                  ["Get your API keys","Project Settings (gear icon) → API → copy the Project URL and the anon public key."],
+                  ["Paste keys into this file","Open sailing_trip.html in a text editor → find SUPABASE_URL and SUPABASE_ANON_KEY at the top → replace the placeholder values."],
+                  ["Deploy to Netlify","Go to netlify.com/drop → drag & drop your updated sailing_trip.html → share the URL with the crew!"],
+                ].map(([title,desc],i)=>(
+                  <li key={i} className="flex gap-3">
+                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i+1}</span>
+                    <div><strong>{title}</strong><br/><span className="text-slate-500 whitespace-pre-wrap">{desc}</span></div>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-5 p-3 bg-blue-50 rounded-lg border border-blue-200 text-xs text-blue-800">
+                💡 <strong>Tip:</strong> Supabase free tier is generous — 500 MB DB, 2 GB bandwidth, unlimited realtime connections. More than enough for the trip.
+              </div>
+              <button onClick={()=>setOpen(false)} className="mt-5 w-full border border-slate-300 text-slate-600 py-2 rounded-lg hover:bg-slate-50">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Sync indicator ─────────────────────────────────────────────────────────
+function SyncDot({status}){
+  const map={
+    local:{color:"bg-slate-400",label:"Local mode"},
+    connecting:{color:"bg-amber-400 pulse",label:"Connecting…"},
+    synced:{color:"bg-green-500",label:"Synced ✓"},
+    offline:{color:"bg-red-400",label:"Offline"},
+  };
+  const {color,label}=map[status]||map.local;
+  return(
+    <div className="flex items-center gap-1.5" title={label}>
+      <span className={`w-2 h-2 rounded-full ${color}`}/>
+      <span className="text-xs text-slate-400 hidden sm:inline">{label}</span>
+    </div>
+  );
+}
+
+// ── Recipe Modal ───────────────────────────────────────────────────────────
+function RecipeModal({meal, setMeals, shopping, setShopping, logChange, onClose}){
+  const ingredientIds = MEAL_INGREDIENTS[meal.id] || [];
+  const ingredients = ingredientIds.map(id => shopping.find(s => s.id === id)).filter(Boolean);
+  const recipe = meal.recipe ?? (RECIPES[meal.id] || "No recipe yet.");
+  const gs = GROUP_STYLE[meal.group] || {bg:"bg-gray-100",text:"text-gray-700"};
+
+  const updateQty = (id, qty) => {
+    const item = shopping.find(s => s.id === id);
+    setShopping(s => s.map(x => x.id === id ? {...x, qty} : x));
+    if(item) logChange("Shopping", `${item.item}: qty updated to ${qty} ${item.unit} (via recipe)`);
+  };
+  const updateRecipe = (text) => {
+    setMeals(ms => ms.map(m => m.id === meal.id ? {...m, recipe: text} : m));
+    logChange("Meals", `${meal.dish}: recipe updated`);
+  };
+
+  return(
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto fade-in" onClick={e=>e.stopPropagation()}>
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">{meal.day} · {meal.meal}</span>
+              {meal.group!=="—"&&<span className={`text-xs ${gs.bg} ${gs.text} px-2 py-0.5 rounded font-medium`}>Group {meal.group}</span>}
+            </div>
+            <h3 className="font-bold text-slate-800 text-lg">{meal.dish}</h3>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-2xl flex-shrink-0">×</button>
+        </div>
+        <div className="p-6 space-y-6">
+          {/* Description + notes */}
+          <div className="text-sm text-slate-600 bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <p>{meal.desc}</p>
+            {meal.note&&<p className="mt-2 text-blue-700 font-medium">⚠️ {meal.note}</p>}
+          </div>
+          {/* Recipe steps */}
+          <div>
+            <h4 className="font-semibold text-slate-700 mb-3">👨‍🍳 Recipe</h4>
+            <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 text-sm text-slate-700 leading-relaxed">
+              <EditableText value={recipe} onChange={updateRecipe} multiline className="whitespace-pre-line w-full"/>
+            </div>
+          </div>
+          {/* Ingredients — linked to shopping list */}
+          {ingredients.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-slate-700 mb-1">🛒 Ingredients</h4>
+              <p className="text-xs text-slate-400 mb-3">Quantities reflect totals on the shopping list. Click to edit — changes sync immediately.</p>
+              <div className="rounded-xl border border-slate-200 overflow-hidden">
+                <div className="grid grid-cols-[1fr_auto_auto] bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  <span>Item</span><span className="text-right pr-4">Qty</span><span>When</span>
+                </div>
+                {ingredients.map(item=>(
+                  <div key={item.id} className={`grid grid-cols-[1fr_auto_auto] px-4 py-2.5 border-t border-slate-100 items-center ${item.checked?'bg-slate-50 opacity-60':''}`}>
+                    <div>
+                      <span className={`text-sm font-medium ${item.checked?'line-through text-slate-400':'text-slate-800'}`}>{item.item}</span>
+                    </div>
+                    <div className="text-sm text-right pr-4 font-medium">
+                      <EditableNumber value={item.qty} onChange={v=>updateQty(item.id,v)}/> <span className="font-normal text-slate-500">{item.unit}</span>
+                    </div>
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${WHEN[item.when]?.bg||'bg-slate-100'} ${WHEN[item.when]?.text||'text-slate-600'}`}>
+                      {WHEN[item.when]?.label?.split(' ')[0]||item.when}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Meals Tab ──────────────────────────────────────────────────────────────
+function MealsTab({meals,setMeals,shopping,setShopping,schedule,locked,logChange}){
+  if(locked) return(
+    <div className="max-w-5xl mx-auto p-4 flex flex-col items-center justify-center min-h-[40vh] text-center">
+      <div className="text-5xl mb-4">🔒</div>
+      <h3 className="text-lg font-bold text-slate-700 mb-2">Meal plan not available yet</h3>
+      <p className="text-sm text-slate-400 max-w-xs">The meal plan will be unlocked soon. Check the Schedule tab for the overview.</p>
+    </div>
+  );
+  const [recipeFor,setRecipeFor]=useState(null);
+  const mealCookGroup=Object.fromEntries((schedule||[]).filter(r=>r.mealId).map(r=>[r.mealId,r.cook]));
+  const update=(id,patch)=>{
+    const meal=meals.find(m=>m.id===id);
+    setMeals(ms=>ms.map(m=>m.id===id?{...m,...patch}:m));
+    if(!meal) return;
+    if('done' in patch) logChange("Meals",`${meal.day} · ${meal.dish}: marked as ${patch.done?'✓ done':'undone'}`);
+    else if('dish' in patch) logChange("Meals",`${meal.day} · ${meal.meal}: dish renamed`,meal.dish,patch.dish);
+    else if('desc' in patch) logChange("Meals",`${meal.day} · ${meal.dish}: description updated`,meal.desc,patch.desc);
+    else if('note' in patch) logChange("Meals",`${meal.day} · ${meal.dish}: dietary note updated`,meal.note||"",patch.note||"");
+  };
+  const done=meals.filter(m=>m.done).length;
+  const days=[...new Set(meals.map(m=>m.day))];
+  return(
+    <div className="max-w-5xl mx-auto p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-xl font-bold text-slate-800">🍽️ Meal Plan</h2>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-slate-500">{done}/{meals.length} cooked</span>
+          <div className="w-32 h-2 bg-slate-200 rounded-full"><div className="h-2 bg-green-500 rounded-full transition-all" style={{width:`${(done/meals.length)*100}%`}}/></div>
+        </div>
+      </div>
+      <p className="text-xs text-slate-400 mb-4 italic">💡 Click any dish name, description or note to edit. Hit 📖 to see the full recipe and linked ingredients.</p>
+      {days.map(day=>(
+        <div key={day} className="mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="bg-slate-700 text-white text-xs font-bold px-2 py-1 rounded">{day}</span>
+            <span className="text-xs text-slate-400">{meals.find(m=>m.day===day)?.date}</span>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {meals.filter(m=>m.day===day).map(meal=>{
+              const cookGroup=mealCookGroup[meal.id];
+              const gs=GROUP_STYLE[cookGroup]||{bg:"bg-gray-100",text:"text-gray-700",border:"border-gray-300"};
+              return(
+                <div key={meal.id} className={`rounded-xl border-2 p-4 bg-white shadow-sm transition-all ${meal.done?'opacity-55 border-green-400':gs.border}`}>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex gap-1 flex-wrap">
+                      <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">{meal.meal}</span>
+                      {cookGroup&&cookGroup!=="ALL"&&<span className={`text-xs ${gs.bg} ${gs.text} px-2 py-0.5 rounded font-medium`}>Group {cookGroup}</span>}
+                      {cookGroup==="ALL"&&<span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-medium">All Hands</span>}
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button onClick={()=>setRecipeFor(meal)}
+                        className="text-xs px-2 py-1 rounded-lg border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100" title="View recipe">
+                        📖
+                      </button>
+                      <button onClick={()=>update(meal.id,{done:!meal.done})}
+                        className={`text-xs font-bold px-2 py-1 rounded-lg border transition-all ${meal.done?'bg-green-100 text-green-700 border-green-400':'bg-white text-slate-500 border-slate-300 hover:border-green-400 hover:text-green-600'}`}>
+                        {meal.done?'✓':'Done'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-base font-semibold text-slate-800 mb-1">
+                    <EditableText value={meal.dish} onChange={v=>update(meal.id,{dish:v})} placeholder="Dish name"/>
+                  </div>
+                  <div className="text-xs text-slate-500 mb-2 leading-snug">
+                    <EditableText value={meal.desc} onChange={v=>update(meal.id,{desc:v})} multiline placeholder="Description..."/>
+                  </div>
+                  {meal.note&&(
+                    <div className="text-xs text-blue-600 bg-blue-50 rounded p-1.5 border border-blue-100">
+                      <EditableText value={meal.note} onChange={v=>update(meal.id,{note:v})} placeholder="Dietary note..."/>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {recipeFor&&<RecipeModal meal={recipeFor} setMeals={setMeals} shopping={shopping} setShopping={setShopping} logChange={logChange} onClose={()=>setRecipeFor(null)}/>}
+    </div>
+  );
+}
+
+// ── Shopping Tab ───────────────────────────────────────────────────────────
+function ShoppingTab({shopping,setShopping,locked,logChange}){
+  if(locked) return(
+    <div className="max-w-5xl mx-auto p-4 flex flex-col items-center justify-center min-h-[40vh] text-center">
+      <div className="text-5xl mb-4">🔒</div>
+      <h3 className="text-lg font-bold text-slate-700 mb-2">Shopping list not available yet</h3>
+      <p className="text-sm text-slate-400 max-w-xs">The shopping list will be unlocked closer to departure. Check back soon!</p>
+    </div>
+  );
+  const [filter,setFilter]=useState("all");
+  const [whenFilter,setWhenFilter]=useState("all");
+  const [search,setSearch]=useState("");
+  const [showAdd,setShowAdd]=useState(false);
+  const [collapsed,setCollapsed]=useState({});
+  const update=(id,patch)=>{
+    const item=shopping.find(x=>x.id===id);
+    setShopping(s=>s.map(x=>x.id===id?{...x,...patch}:x));
+    if(!item) return;
+    if('checked' in patch) logChange("Shopping",`${item.item}: ${patch.checked?'✓ added to cart':'removed from cart'}`);
+    else if('qty' in patch) logChange("Shopping",`${item.item}: qty changed`,`${item.qty} ${item.unit}`,`${patch.qty} ${item.unit}`);
+    else if('item' in patch) logChange("Shopping",`Item renamed`,item.item,patch.item);
+  };
+  const del=(id)=>{
+    const item=shopping.find(x=>x.id===id);
+    setShopping(s=>s.filter(x=>x.id!==id));
+    if(item) logChange("Shopping",`"${item.item}" removed from list`);
+  };
+  const add=(item)=>{
+    setShopping(s=>[...s,{...item,id:"s"+uid(),checked:false}]);
+    logChange("Shopping",`New item added: "${item.item}" (${item.qty} ${item.unit})`);
+  };
+  const cats=[...new Set(shopping.map(x=>x.cat))];
+  const checked=shopping.filter(x=>x.checked).length;
+  const visible=(item)=>{
+    if(filter==="unchecked"&&item.checked)return false;
+    if(filter==="checked"&&!item.checked)return false;
+    if(whenFilter!=="all"&&item.when!==whenFilter)return false;
+    if(search&&!item.item.toLowerCase().includes(search.toLowerCase()))return false;
+    return true;
+  };
+  return(
+    <div className="max-w-5xl mx-auto p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h2 className="text-xl font-bold text-slate-800">🛒 Shopping List</h2>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-slate-500">{checked}/{shopping.length} in cart</span>
+          <div className="w-24 h-2 bg-slate-200 rounded-full"><div className="h-2 bg-blue-500 rounded-full transition-all" style={{width:`${(checked/shopping.length)*100}%`}}/></div>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 mb-3">
+        <input className="border rounded-lg px-3 py-1.5 text-sm w-48" placeholder="🔍 Search..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        <select className="text-sm py-1.5" value={filter} onChange={e=>setFilter(e.target.value)}>
+          <option value="all">All items</option>
+          <option value="unchecked">Still to buy</option>
+          <option value="checked">In cart ✓</option>
+        </select>
+        <select className="text-sm py-1.5" value={whenFilter} onChange={e=>setWhenFilter(e.target.value)}>
+          <option value="all">All — when to buy</option>
+          {Object.entries(WHEN).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+        </select>
+        <button onClick={()=>{setShopping(s=>s.map(x=>({...x,checked:false})));logChange("Shopping","All cart checkmarks cleared");}}
+          className="text-xs border border-slate-300 text-slate-500 px-2 py-1.5 rounded-lg hover:bg-slate-50">Clear all ✓</button>
+        <button onClick={()=>setShowAdd(true)} className="ml-auto bg-blue-600 text-white text-sm px-3 py-1.5 rounded-lg hover:bg-blue-700 font-medium">+ Add item</button>
+      </div>
+      <div className="flex gap-2 flex-wrap text-xs mb-3">
+        {Object.entries(WHEN).map(([k,v])=><span key={k} className={`${v.bg} ${v.text} px-2 py-0.5 rounded font-medium`}>{v.label}</span>)}
+        <span className="text-slate-400 ml-1">Click qty or name to edit. ✕ to remove.</span>
+      </div>
+      {cats.map(cat=>{
+        const items=shopping.filter(x=>x.cat===cat&&visible(x));
+        if(!items.length)return null;
+        const catChecked=items.filter(x=>x.checked).length;
+        const col=collapsed[cat];
+        return(
+          <div key={cat} className="mb-3 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+            <button className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 hover:bg-slate-100 text-left"
+              onClick={()=>setCollapsed(c=>({...c,[cat]:!c[cat]}))}>
+              <span className="font-semibold text-slate-700 text-sm">{cat}</span>
+              <span className="text-slate-400 text-sm">{col?'▼':'▲'} {catChecked}/{items.length}</span>
+            </button>
+            {!col&&(
+              <div className="divide-y divide-slate-100">
+                {items.map(item=>(
+                  <div key={item.id} className={`flex items-center gap-2 px-4 py-2 ${item.checked?'bg-slate-50':'bg-white'} hover:bg-slate-50`}>
+                    <input type="checkbox" checked={item.checked} onChange={e=>update(item.id,{checked:e.target.checked})}
+                      className="w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"/>
+                    <div className={`flex-1 min-w-0 ${item.checked?'line-through text-slate-400':''}`}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <EditableText value={item.item} onChange={v=>update(item.id,{item:v})}
+                          className={`text-sm font-medium ${item.checked?'text-slate-400':'text-slate-800'}`}/>
+                        <span className="text-sm flex-shrink-0">
+                          <EditableNumber value={item.qty} onChange={v=>update(item.id,{qty:v})}/> {item.unit}
+                        </span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded flex-shrink-0 ${WHEN[item.when]?.bg||'bg-slate-100'} ${WHEN[item.when]?.text||'text-slate-600'}`}>
+                          {WHEN[item.when]?.label||item.when}
+                        </span>
+                      </div>
+                      {(item.usedIn||item.notes)&&(
+                        <div className="text-xs text-slate-400 mt-0.5 truncate">{item.usedIn}{item.notes?` · ${item.notes}`:''}</div>
+                      )}
+                    </div>
+                    <button onClick={()=>del(item.id)} className="text-slate-300 hover:text-red-400 text-lg leading-none flex-shrink-0" title="Remove">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {showAdd&&<AddItemModal cats={cats} onAdd={add} onClose={()=>setShowAdd(false)}/>}
+    </div>
+  );
+}
+
+function AddItemModal({cats,onAdd,onClose}){
+  const [form,setForm]=useState({cat:cats[0]||"",item:"",qty:1,unit:"units",when:"D1",usedIn:"",notes:""});
+  const [custom,setCustom]=useState(false);
+  return(
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 fade-in" onClick={e=>e.stopPropagation()}>
+        <h3 className="font-bold text-slate-800 mb-4">➕ Add item</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-slate-500 font-medium">Category</label>
+            <div className="flex gap-2 mt-1">
+              {!custom
+                ?<select className="flex-1 text-sm py-1.5" value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>
+                   {cats.map(c=><option key={c}>{c}</option>)}
+                 </select>
+                :<input className="flex-1 border rounded px-2 py-1.5 text-sm" placeholder="New category name..." value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}/>}
+              <button onClick={()=>setCustom(!custom)} className="text-xs text-blue-600">{custom?"Pick existing":"+ New cat"}</button>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-slate-500 font-medium">Item name *</label>
+            <input className="w-full border rounded px-2 py-1.5 text-sm mt-1" placeholder="e.g. Cherry tomatoes" value={form.item} onChange={e=>setForm(f=>({...f,item:e.target.value}))}/>
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1"><label className="text-xs text-slate-500 font-medium">Qty</label>
+              <input type="number" min="0" step="0.5" className="w-full border rounded px-2 py-1.5 text-sm mt-1" value={form.qty} onChange={e=>setForm(f=>({...f,qty:parseFloat(e.target.value)||0}))}/></div>
+            <div className="flex-1"><label className="text-xs text-slate-500 font-medium">Unit</label>
+              <input className="w-full border rounded px-2 py-1.5 text-sm mt-1" placeholder="kg, units, L..." value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))}/></div>
+          </div>
+          <div><label className="text-xs text-slate-500 font-medium">When to buy</label>
+            <select className="w-full text-sm py-1.5 mt-1" value={form.when} onChange={e=>setForm(f=>({...f,when:e.target.value}))}>
+              {Object.entries(WHEN).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</select></div>
+          <div><label className="text-xs text-slate-500 font-medium">Used in (optional)</label>
+            <input className="w-full border rounded px-2 py-1.5 text-sm mt-1" placeholder="e.g. Day 3 Dinner" value={form.usedIn} onChange={e=>setForm(f=>({...f,usedIn:e.target.value}))}/></div>
+          <div><label className="text-xs text-slate-500 font-medium">Notes (optional)</label>
+            <input className="w-full border rounded px-2 py-1.5 text-sm mt-1" placeholder="Any notes..." value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}/></div>
+        </div>
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="flex-1 border border-slate-300 text-slate-600 py-2 rounded-lg text-sm hover:bg-slate-50">Cancel</button>
+          <button onClick={()=>{if(form.item.trim()){onAdd(form);onClose();}}}
+            className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50" disabled={!form.item.trim()}>Add</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Schedule Tab ───────────────────────────────────────────────────────────
+function CrewRestrictions(){
+  const [open,setOpen]=useState(false);
+  return(
+    <div className="mt-6 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <button onClick={()=>setOpen(o=>!o)} className="w-full flex items-center justify-between bg-slate-50 border-b border-slate-200 px-4 py-3 hover:bg-slate-100 transition-colors">
+        <h3 className="text-sm font-semibold text-slate-700">🚨 Crew Dietary Restrictions & Dislikes</h3>
+        <span className="text-slate-400 text-xs">{open?"▲ hide":"▼ show"}</span>
+      </button>
+      {open&&<div className="divide-y divide-slate-100">
+        {CREW_PROFILES.filter(p=>p.restrictions.length>0).map(p=>{
+          const gs=GROUP_STYLE[p.group]||{bg:"bg-slate-100",text:"text-slate-600",border:"border-slate-200"};
+          return(
+            <div key={p.name} className="flex items-center gap-3 px-4 py-3 bg-white">
+              <span className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ${gs.bg} ${gs.text} border ${gs.border} flex-shrink-0`}>{p.group==="—"?"Skipper":"Group "+p.group}</span>
+              <span className="text-sm font-medium text-slate-700 w-28 flex-shrink-0">{p.name}{p.role&&<span className="text-xs text-slate-400 block">{p.role}</span>}</span>
+              <div className="flex flex-wrap gap-2">
+                {p.restrictions.map(r=>(
+                  <span key={r} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">{r}</span>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>}
+    </div>
+  );
+}
+
+function CrewPreferences(){
+  const [open,setOpen]=useState(false);
+  const sections=[
+    {label:"🍳 Breakfast",key:"breakfast"},
+    {label:"🍽️ Food Likes",key:"foodLikes"},
+    {label:"🚫 Food Dislikes",key:"foodDislikes"},
+    {label:"🍺 Beer",key:"beer"},
+    {label:"🍷 Wine",key:"wine"},
+    {label:"🥃 Liquor",key:"liquor"},
+    {label:"☕ Coffee/Tea",key:"coffee"},
+    {label:"🧃 Non-Alcoholic",key:"nonAlc"},
+    {label:"🍹 Drinks/day",key:"alcoholPerDay"},
+  ];
+  return(
+    <div className="mt-4 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <button onClick={()=>setOpen(o=>!o)} className="w-full flex items-center justify-between bg-slate-50 border-b border-slate-200 px-4 py-3 hover:bg-slate-100 transition-colors">
+        <h3 className="text-sm font-semibold text-slate-700">🧑‍🤝‍🧑 Crew Preferences</h3>
+        <span className="text-slate-400 text-xs">{open?"▲ hide":"▼ show"}</span>
+      </button>
+      {open&&(
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-3 py-2 text-left font-semibold text-slate-500 sticky left-0 bg-slate-50 z-10 min-w-[100px] border-r border-slate-200">Category</th>
+                {CREW_PROFILES.map(p=>{
+                  const gs=GROUP_STYLE[p.group]||{bg:"bg-slate-100",text:"text-slate-600",border:"border-slate-200"};
+                  return(
+                    <th key={p.name} className="px-3 py-2 text-center font-semibold min-w-[110px]">
+                      <div className={`text-xs font-bold px-1.5 py-0.5 rounded mb-1 ${gs.bg} ${gs.text} inline-block`}>{p.group==="—"?"Skip":p.group}</div>
+                      <div className="text-slate-700">{p.name}</div>
+                      {p.role&&<div className="text-slate-400 font-normal">{p.role}</div>}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {sections.map(({label,key},si)=>(
+                <tr key={key} className={`border-b border-slate-100 ${si%2===0?"bg-white":"bg-slate-50/50"}`}>
+                  <td className="px-3 py-2 font-semibold text-slate-600 sticky left-0 z-10 whitespace-nowrap border-r border-slate-200" style={{background:si%2===0?"#ffffff":"#f9fafb"}}>{label}</td>
+                  {CREW_PROFILES.map(p=>(
+                    <td key={p.name} className="px-3 py-2 text-center text-slate-600 align-top">
+                      {p[key]&&p[key]!=="—"&&p[key]!=="none"&&p[key]!=="no"?p[key]:<span className="text-slate-300">—</span>}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScheduleTab({meals, setMeals, schedule, setSchedule, logChange}){
+  const groups=["A","B","C"];
+  const mealById=Object.fromEntries(meals.map(m=>[m.id,m]));
+  const [editMode,setEditMode]=useState(false);
+
+  const cookCount=Object.fromEntries(groups.map(g=>[g, schedule.filter(s=>s.mealId&&(s.cook===g||s.cook==="ALL")).length]));
+  const cleanCount=Object.fromEntries(groups.map(g=>[g, schedule.filter(s=>s.clean&&(s.clean===g||s.clean==="ALL")).length]));
+
+  const groupMembers={
+    A:["Renato","Gisele Pinheiro","Annika"],
+    B:["Nawal Ali","Bruno Rafael","Julia"],
+    C:["Gisele Paiva","Camila","Raoni"],
+  };
+
+  const updateRow=(idx,patch)=>{
+    setSchedule(sc=>sc.map((r,i)=>i===idx?{...r,...patch}:r));
+    const keys=Object.keys(patch).join('/');
+    const oldVals=Object.keys(patch).map(k=>schedule[idx][k]).join('/');
+    const newVals=Object.values(patch).join('/');
+    logChange("Schedule",`Row ${idx+1}: ${keys} reassigned`,oldVals,newVals);
+  };
+
+  return(
+    <div className="max-w-5xl mx-auto p-4">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-xl font-bold text-slate-800">📋 Crew Schedule</h2>
+        <button onClick={()=>setEditMode(e=>!e)}
+          className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-all ${editMode?'bg-blue-50 border-blue-300 text-blue-700':'border-slate-300 text-slate-500 hover:bg-slate-50'}`}>
+          {editMode?'✓ Done editing':'✏️ Edit assignments'}
+        </button>
+      </div>
+      <p className="text-sm text-slate-500 mb-5">Who cooks and who cleans for each meal. Skipper Cüneyt is excluded.</p>
+
+      {/* Group member cards */}
+      <div className="grid md:grid-cols-3 gap-3 mb-6">
+        {groups.map(g=>{
+          const gs=GROUP_STYLE[g];
+          return(
+            <div key={g} className={`rounded-xl border-2 ${gs.border} p-4 bg-white shadow-sm`}>
+              <div className={`text-xs font-bold ${gs.text} ${gs.bg} inline-block px-2 py-0.5 rounded mb-2`}>Group {g}</div>
+              <ul className="space-y-1 text-sm text-slate-700 mb-3">
+                {groupMembers[g].map(n=><li key={n} className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0"/>{n}</li>)}
+              </ul>
+              <div className="flex gap-3 text-xs text-slate-500 border-t border-slate-100 pt-2">
+                <span>🍳 Cooks: <strong className="text-slate-700">{cookCount[g]}×</strong></span>
+                <span>🧹 Cleans: <strong className="text-slate-700">{cleanCount[g]}×</strong></span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Schedule table */}
+      <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide w-8">#</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide">Meal</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-600 text-xs uppercase tracking-wide">Dish</th>
+                <th className="px-4 py-3 text-center font-semibold text-slate-600 text-xs uppercase tracking-wide">🍳 Cooks</th>
+                <th className="px-4 py-3 text-center font-semibold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">🧹 Cleans</th>
+              </tr>
+            </thead>
+            <tbody>
+              {schedule.map((row,i)=>{
+                if(row.type==="restaurant"){
+                  return(
+                    <tr key={`rest-${i}`} className="border-b border-slate-100 bg-white">
+                      <td className="px-4 py-3 text-xs text-slate-400 font-mono"></td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-slate-700">{row.day} · {row.meal}</div>
+                        <div className="text-xs text-slate-400">{row.date}</div>
+                      </td>
+                      <td className="px-4 py-3" colSpan={3}>
+                        <span className="inline-flex items-center gap-1.5 text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-lg font-medium">
+                          🍽️ {row.desc}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                }
+                if(row.type==="self-service"){
+                  const gs=GROUP_STYLE[row.clean];
+                  return(
+                    <tr key={`bkfst-${i}`} className="border-b border-slate-100 bg-slate-50/60">
+                      <td className="px-4 py-2 text-xs text-slate-300 font-mono"></td>
+                      <td className="px-4 py-2">
+                        <div className="font-medium text-slate-500 text-xs">{row.day} · {row.meal}</div>
+                        <div className="text-xs text-slate-400">{row.date}</div>
+                      </td>
+                      <td className="px-4 py-2"><span className="text-xs text-slate-500 italic">{row.desc}</span></td>
+                      <td className="px-4 py-2 text-center"><span className="text-xs text-slate-300">—</span></td>
+                      <td className="px-4 py-2 text-center">
+                        {editMode
+                          ?<select className="text-xs py-1" value={row.clean||""} onChange={e=>updateRow(i,{clean:e.target.value})}>
+                              {groups.map(g=><option key={g} value={g}>Group {g}</option>)}
+                            </select>
+                          :gs&&<span className={`text-xs px-2 py-1 rounded-lg font-semibold whitespace-nowrap ${gs.bg} ${gs.text} border ${gs.border}`}>Group {row.clean}</span>
+                        }
+                      </td>
+                    </tr>
+                  );
+                }
+                const meal=mealById[row.mealId];
+                if(!meal) return null;
+                const isAll=row.cook==="ALL";
+                const cookGs=GROUP_STYLE[row.cook];
+                const cleanGs=GROUP_STYLE[row.clean];
+                return(
+                  <tr key={row.mealId} className={`border-b border-slate-100 ${meal.done?'opacity-50 bg-slate-50/40':'bg-white'}`}>
+                    <td className="px-4 py-3 text-xs text-slate-400 font-mono">{i+1}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-700">{meal.day} · {meal.meal}</div>
+                      <div className="text-xs text-slate-400">{meal.date}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-800">
+                        <EditableText value={meal.dish} onChange={v=>{logChange("Meals",`${meal.day} · ${meal.meal}: dish renamed`,meal.dish,v);setMeals(ms=>ms.map(m=>m.id===meal.id?{...m,dish:v}:m));}} placeholder="Dish name"/>
+                      </div>
+                      {(meal.note||editMode)&&<div className="text-xs text-amber-700 mt-1 leading-snug flex gap-1"><span>⚠️</span><EditableText value={meal.note||""} onChange={v=>{logChange("Meals",`${meal.day} · ${meal.meal}: note updated`,meal.note||"",v);setMeals(ms=>ms.map(m=>m.id===meal.id?{...m,note:v}:m));}} placeholder="Add dietary note..."/></div>}
+                      {meal.done&&<span className="text-xs text-green-600 font-semibold">✓ Done</span>}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {isAll
+                        ?<span className="text-xs px-2 py-1 rounded-lg font-semibold bg-purple-100 text-purple-800 border border-purple-200">🙌 ALL</span>
+                        :editMode
+                          ?<select className="text-xs py-1" value={row.cook} onChange={e=>updateRow(i,{cook:e.target.value})}>
+                              {groups.map(g=><option key={g} value={g}>Group {g}</option>)}
+                            </select>
+                          :cookGs&&<span className={`text-xs px-2 py-1 rounded-lg font-semibold whitespace-nowrap ${cookGs.bg} ${cookGs.text} border ${cookGs.border}`}>Group {row.cook}</span>
+                      }
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {isAll
+                        ?<span className="text-xs px-2 py-1 rounded-lg font-semibold bg-purple-100 text-purple-800 border border-purple-200">🙌 ALL</span>
+                        :editMode
+                          ?<select className="text-xs py-1" value={row.clean} onChange={e=>updateRow(i,{clean:e.target.value})}>
+                              {groups.map(g=><option key={g} value={g}>Group {g}</option>)}
+                            </select>
+                          :cleanGs&&<span className={`text-xs px-2 py-1 rounded-lg font-semibold whitespace-nowrap ${cleanGs.bg} ${cleanGs.text} border ${cleanGs.border}`}>Group {row.clean}</span>
+                      }
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Crew dietary restrictions */}
+      <CrewRestrictions/>
+
+      {/* Crew preferences */}
+      <CrewPreferences/>
+
+    </div>
+  );
+}
+
+// ── Coffee Tab ─────────────────────────────────────────────────────────────
+function CoffeeTab({crew,setCrew,logChange}){
+  const update=(id,patch)=>{
+    const person=crew.find(x=>x.id===id);
+    setCrew(c=>c.map(x=>x.id===id?{...x,...patch}:x));
+    if(!person) return;
+    if('coffeeType' in patch||'tea' in patch)
+      logChange("Coffee",`${person.name}: type → ${patch.tea?"tea":patch.coffeeType}`);
+    else if('cups' in patch)
+      logChange("Coffee",`${person.name}: cups/day → ${patch.cups}`);
+  };
+  const updateExtra=(id,idx,patch)=>{
+    const person=crew.find(x=>x.id===id);
+    setCrew(c=>c.map(x=>{
+      if(x.id!==id) return x;
+      const extras=[...(x.extras||[])];
+      if(patch===null) extras.splice(idx,1);
+      else extras[idx]={...extras[idx],...patch};
+      return {...x,extras};
+    }));
+    if(!person) return;
+    if(patch===null) logChange("Coffee",`${person.name}: preference #${idx+2} removed`);
+    else if(patch.type) logChange("Coffee",`${person.name}: preference #${idx+2} → ${patch.type}`);
+  };
+  const addExtra=(id)=>{
+    setCrew(c=>c.map(x=>x.id!==id?x:{...x,extras:[...(x.extras||[]),{type:"filter",cups:1}]}));
+  };
+  const days=7;
+  const typeOpts=[
+    {v:"filter",          l:"☕ Filter coffee"},
+    {v:"nespresso",       l:"🫘 Nespresso"},
+    {v:"nespresso-decaf", l:"🫘 Nespresso decaf pods"},
+    {v:"frappe",          l:"🧊 Frappé"},
+    {v:"tea",             l:"🍵 Tea only"},
+    {v:"none",            l:"❌ None"},
+  ];
+  const extraTypeOpts=[
+    {v:"filter",          l:"☕ Filter coffee"},
+    {v:"nespresso",       l:"🫘 Nespresso"},
+    {v:"nespresso-decaf", l:"🫘 Nespresso decaf pods"},
+    {v:"frappe",          l:"🧊 Frappé"},
+    {v:"tea",             l:"🍵 Tea"},
+  ];
+  // Migrate old data format on-the-fly
+  const normCrew=crew.map(p=>{
+    let c={...p};
+    if(!c.extras){
+      const extras=[];
+      if(c.extra?.type){const t=c.extra.type+(c.extra.decaf&&!c.extra.type.includes('decaf')?'-decaf':'');extras.push({type:t,cups:c.extra.cups||1});}
+      c.extras=extras;
+    }
+    if(c.decaf&&c.coffeeType&&!c.coffeeType.includes('decaf'))c={...c,coffeeType:c.coffeeType+'-decaf'};
+    return c;
+  });
+  // Aggregate totals
+  const allPrefs=normCrew.flatMap(p=>{
+    const mainType=p.tea?"tea":(p.coffeeType||"none");
+    const prefs=mainType!=="none"?[{type:mainType,cups:p.cups||0}]:[];
+    (p.extras||[]).forEach(e=>{if(e.type)prefs.push({type:e.type,cups:e.cups||1});});
+    return prefs;
+  });
+  const sumCups=(t)=>allPrefs.filter(p=>p.type===t).reduce((a,p)=>a+p.cups,0)*days;
+  const pcount=(t)=>allPrefs.filter(p=>p.type===t).length;
+  const teaPeople=normCrew.filter(x=>x.tea||(x.extras||[]).some(e=>e.type==="tea")).length;
+  const isDrinker=(t,tea)=>t!=="none"&&!tea; // keep for unused compat
+
+  return(
+    <div className="max-w-3xl mx-auto p-4">
+      <h2 className="text-xl font-bold text-slate-800 mb-1">☕ Coffee & Drinks Survey</h2>
+      <p className="text-sm text-slate-500 mb-5">Confirm your preferences. Decaf is in the dropdown. Up to 4 choices per person.</p>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+        <div className="bg-slate-50 px-4 py-2 grid grid-cols-[1fr_1fr_56px] text-xs font-semibold text-slate-500 uppercase tracking-wide gap-2">
+          <span>Name</span><span>Type</span><span className="text-center">Cups/day</span>
+        </div>
+        {normCrew.map(p=>{
+          const gs=GROUP_STYLE[p.group];
+          const mainType=p.tea?"tea":(p.coffeeType||"none");
+          const hasDrink=mainType!=="none";
+          const canAdd=(p.extras||[]).length<3;
+          return(
+            <div key={p.id} className="border-t border-slate-100">
+              <div className="px-4 py-2.5 grid grid-cols-[1fr_1fr_56px] items-center gap-2 hover:bg-slate-50">
+                <div className="flex items-center gap-2 min-w-0">
+                  {gs&&<span className={`text-xs ${gs.bg} ${gs.text} px-1.5 py-0.5 rounded font-medium flex-shrink-0`}>G{p.group}</span>}
+                  <EditableText value={p.name} onChange={v=>update(p.id,{name:v})} className="text-sm font-medium text-slate-700 truncate"/>
+                </div>
+                <select className="text-xs py-1 w-full" value={mainType}
+                  onChange={e=>{const v=e.target.value;update(p.id,{coffeeType:v==="tea"?"none":v,tea:v==="tea",cups:v==="none"||v==="tea"?0:p.cups||2});}}>
+                  {typeOpts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+                </select>
+                <div className="flex items-center gap-1 justify-center">
+                  {hasDrink&&mainType!=="tea"
+                    ?<EditableNumber value={p.cups} onChange={v=>update(p.id,{cups:v})} min={0} step={1}/>
+                    :<span className="text-slate-300 text-sm">—</span>}
+                  {hasDrink&&<button onClick={()=>update(p.id,{coffeeType:"none",tea:false,cups:0})}
+                    className="text-slate-300 hover:text-red-400 text-lg leading-none flex-shrink-0" title="Remove">×</button>}
+                </div>
+              </div>
+              {(p.extras||[]).map((e,ei)=>(
+                <div key={ei} className="px-4 pb-1.5 grid grid-cols-[1fr_1fr_56px] items-center gap-2 bg-slate-50/70">
+                  <div className="flex items-center pl-6">
+                    <span className="text-xs text-slate-400 italic">also:</span>
+                  </div>
+                  <select className="text-xs py-1 w-full" value={e.type||"filter"}
+                    onChange={ev=>updateExtra(p.id,ei,{type:ev.target.value})}>
+                    {extraTypeOpts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+                  </select>
+                  <div className="flex items-center gap-1 justify-center">
+                    <EditableNumber value={e.cups||1} onChange={v=>updateExtra(p.id,ei,{cups:v})} min={0} step={1}/>
+                    <button onClick={()=>updateExtra(p.id,ei,null)}
+                      className="text-slate-300 hover:text-red-400 text-lg leading-none flex-shrink-0" title="Remove">×</button>
+                  </div>
+                </div>
+              ))}
+              {canAdd&&(
+                <div className="px-4 pb-1.5 pl-16">
+                  <button onClick={()=>addExtra(p.id)} className="text-xs text-slate-400 hover:text-blue-600">+ add another type</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {[
+          {icon:"☕",label:"Filter Coffee",value:`~${Math.round(sumCups("filter")*10)}g`,sub:`${sumCups("filter")} cups · ${days} days`},
+          {icon:"☕",label:"Filter Decaf",value:`~${Math.round(sumCups("filter-decaf")*10)}g`,sub:`${sumCups("filter-decaf")} cups · decaf only`,alert:sumCups("filter-decaf")>0},
+          {icon:"🫘",label:"Nespresso",value:`${sumCups("nespresso")} pods`,sub:`${pcount("nespresso")} preference(s)`},
+          {icon:"💊",label:"Nespresso Decaf ❗",value:`${sumCups("nespresso-decaf")} pods`,sub:"Must be decaf pods",alert:sumCups("nespresso-decaf")>0},
+          {icon:"🧊",label:"Frappé (instant)",value:`~${Math.round(sumCups("frappe")*20)}g`,sub:`${pcount("frappe")} frappé lover(s)`},
+          {icon:"🍵",label:"Tea Bags",value:`~${teaPeople*2*days} bags`,sub:`${teaPeople} tea drinker(s)`},
+        ].map(c=>(
+          <div key={c.label} className={`rounded-xl border p-4 ${c.alert?'bg-purple-50 border-purple-200':'bg-white border-slate-200'}`}>
+            <div className="text-2xl mb-1">{c.icon}</div>
+            <div className="text-xs text-slate-500 font-medium mb-0.5">{c.label}</div>
+            <div className="text-xl font-bold text-slate-800">{c.value}</div>
+            <div className="text-xs text-slate-400">{c.sub}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Admin Modal ────────────────────────────────────────────────────────────
+function AdminModal({meals,setShopping,shoppingLocked,setShoppingLocked,mealsLocked,setMealsLocked,changelog,setChangelog,logChange,onClose}){
+  const [unlocked,setUnlocked]=useState(false);
+  const [pw,setPw]=useState("");
+  const [err,setErr]=useState("");
+  const [showPrompt,setShowPrompt]=useState(false);
+  const tryUnlock=()=>{if(pw===ADMIN_PASS){setUnlocked(true);setErr("");}else{setErr("Wrong password");setPw("");}};
+  const genPrompt=()=>{
+    const ml=meals.map(m=>`- ${m.day} ${m.meal} (Group ${m.group}): ${m.dish}\n  ${m.desc}`).join("\n");
+    const rl=DIETARY_RULES.map(r=>`- ${r.name}: ${r.rules}${r.extra?` · ${r.extra}`:""}`).join("\n");
+    return `You are helping plan a sailing trip shopping list for 10 people, 7 nights, Fethiye Turkey (13-20 June 2026).
+
+DIETARY RULES:\n${rl}
+
+MEAL PLAN (9 on-board cooking slots):\n${ml}
+
+NOTES: No pork in any dish. Fresh fish (Day 5) and shrimp (Day 6) bought locally — mark as FRESH. Mushrooms top-up in Ekincik (Day 3-4) — mark as TOP. Everything else Day 1 in Fethiye — mark as D1. Bruno (no seafood) always needs a simple alternative on fish/shrimp days.
+
+Return ONLY a JSON array with this structure:
+[{"cat":"emoji + category","item":"name","qty":number,"unit":"string","when":"D1|FRESH|TOP","usedIn":"string","notes":"string"}]`;
+  };
+  const resetAll=()=>{
+    if(confirm("Reset ALL data to defaults?")){
+      localStorage.clear();
+      if(sb) sb.from('sailing_data').delete().neq('key','__never__').then(()=>window.location.reload());
+      else window.location.reload();
+    }
+  };
+  const sectionColor=(s)=>s==="Meals"?"bg-blue-100 text-blue-700":s==="Shopping"?"bg-green-100 text-green-700":s==="Coffee"?"bg-amber-100 text-amber-700":"bg-slate-100 text-slate-600";
+  const fmtTime=(ts)=>{const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});};
+
+  if(!unlocked)return(
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-80 fade-in" onClick={e=>e.stopPropagation()}>
+        <div className="text-3xl text-center mb-2">🔑</div>
+        <h3 className="font-bold text-slate-800 text-center mb-1">Admin Access</h3>
+        <p className="text-xs text-slate-400 text-center mb-5">Enter the admin password to continue</p>
+        <input type="password" className="w-full border rounded-lg px-3 py-2 text-sm mb-2" placeholder="Password"
+          value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&tryUnlock()} autoFocus/>
+        {err&&<p className="text-red-500 text-xs mb-2 text-center">{err}</p>}
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 border border-slate-300 text-slate-600 py-2 rounded-lg text-sm hover:bg-slate-50">Cancel</button>
+          <button onClick={tryUnlock} className="flex-1 bg-slate-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-slate-900">Unlock</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const prompt=genPrompt();
+  return(
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto fade-in" onClick={e=>e.stopPropagation()}>
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2"><span className="text-xl">🔑</span><h3 className="font-bold text-slate-800">Admin Panel</h3></div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-2xl">×</button>
+        </div>
+        <div className="p-6 space-y-6">
+          {/* Dietary rules */}
+          <div>
+            <h4 className="font-semibold text-slate-700 mb-3">🍽️ Crew Dietary Rules</h4>
+            <div className="rounded-xl border border-slate-200 overflow-hidden text-xs">
+              <div className="grid grid-cols-5 bg-slate-50 px-3 py-2 font-semibold text-slate-500 uppercase tracking-wide">
+                <span>Name</span><span>Group</span><span>Restrictions</span><span>Protein</span><span>Beverage</span>
+              </div>
+              {DIETARY_RULES.map(r=>{
+                const gs=GROUP_STYLE[r.group];
+                return(
+                  <div key={r.name} className="grid grid-cols-5 px-3 py-2 border-t border-slate-100">
+                    <span className="font-medium">{r.name}{r.note&&<span className="text-slate-400"> ({r.note})</span>}</span>
+                    <span>{gs?<span className={`${gs.bg} ${gs.text} px-1.5 py-0.5 rounded`}>G{r.group}</span>:<span className="text-slate-400">—</span>}</span>
+                    <span className={r.rules==="—"?"text-slate-400":"text-red-700 font-medium"}>{r.rules}{r.extra&&<span className="text-slate-400 font-normal"> · {r.extra}</span>}</span>
+                    <span className={r.protein==="High Protein"?"text-orange-600 font-medium":"text-slate-500"}>{r.protein}</span>
+                    <span className="text-slate-600">{r.bev}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          {/* Trip rules */}
+          <div>
+            <h4 className="font-semibold text-slate-700 mb-3">📋 Trip Rules</h4>
+            <div className="grid md:grid-cols-2 gap-2 text-xs">
+              {[["🚫 No pork","Julia · Ali · Cüneyt — avoid pork entirely"],
+                ["🍗 No chicken (general)","Gisele Paiva. Exception: Strogonoff de Frango (she agreed)"],
+                ["🦐 No seafood","Bruno can't eat seafood/shellfish. Always have an alternative"],
+                ["🌿 Annika","Not every meal with meat. Flag veggie-friendly options"],
+                ["🌶️ Spicy on the side","Renato — serve isot/pul biber separately"],
+                ["💊 Decaf only","Gisele Paiva must only drink decaf Nespresso"],
+                ["🐟 Fresh seafood","Buy fish/shrimp locally (Days 5 & 6) — don't stock Day 1"],
+                ["♻️ Zero waste","Days 6-7 use up remaining provisions"],
+              ].map(([k,v])=>(
+                <div key={k} className="bg-slate-50 rounded-lg p-2.5 border border-slate-200">
+                  <div className="font-semibold text-slate-700">{k}</div>
+                  <div className="text-slate-500 mt-0.5">{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* AI regen */}
+          <div>
+            <h4 className="font-semibold text-slate-700 mb-2">🤖 Regenerate Shopping List with AI</h4>
+            <p className="text-xs text-slate-500 mb-3">Use when dishes change significantly. Copy the prompt → paste into Claude → paste the JSON response back here.</p>
+            <button onClick={()=>setShowPrompt(!showPrompt)} className="bg-slate-800 text-white text-sm px-4 py-2 rounded-lg hover:bg-slate-900">
+              {showPrompt?"Hide":"📋 Show AI prompt"}
+            </button>
+            {showPrompt&&(
+              <div className="mt-3">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-slate-500">1. Copy → 2. Paste into Claude → 3. Paste JSON back below</span>
+                  <button onClick={()=>{navigator.clipboard.writeText(prompt);alert("Copied!");}} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">Copy</button>
+                </div>
+                <textarea className="w-full border rounded-lg p-3 text-xs font-mono bg-slate-50 h-36" readOnly value={prompt}/>
+                <div className="mt-2">
+                  <p className="text-xs text-slate-500 mb-1">Paste Claude's JSON response here:</p>
+                  <textarea id="json-import" className="w-full border rounded-lg p-2 text-xs font-mono h-20" placeholder='[{"cat":"...","item":"...","qty":1,...}]'/>
+                  <button onClick={()=>{
+                    try{
+                      const raw=document.getElementById("json-import").value;
+                      const parsed=JSON.parse(raw);
+                      if(Array.isArray(parsed)){
+                        const items=parsed.map(x=>({...x,id:"s"+uid(),checked:false}));
+                        if(confirm(`Import ${items.length} items? Replaces current list.`)){
+                          setShopping(items);
+                          logChange("Shopping",`Shopping list imported from AI — ${items.length} items`);
+                          onClose();
+                        }
+                      }else alert("Expected a JSON array");
+                    }catch(e){alert("Invalid JSON: "+e.message);}
+                  }} className="mt-2 bg-green-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-green-700">Import shopping list</button>
+                </div>
+              </div>
+            )}
+          </div>
+          {/* Supabase deploy */}
+          <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 text-sm">
+            <h4 className="font-semibold text-blue-800 mb-2">🚀 Deploy to Netlify</h4>
+            <ol className="text-xs text-blue-700 space-y-1">
+              <li>1. Make sure SUPABASE_URL and SUPABASE_ANON_KEY are filled in (top of the HTML file)</li>
+              <li>2. Go to <strong>netlify.com/drop</strong></li>
+              <li>3. Drag & drop <strong>sailing_trip.html</strong> into the page</li>
+              <li>4. Copy the URL you get (e.g. xyz.netlify.app) and share with the crew</li>
+            </ol>
+          </div>
+          {/* Change Log */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold text-slate-700">📝 Change Log</h4>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">{changelog.length} entries</span>
+                {changelog.length>0&&<button onClick={()=>setChangelog([])} className="text-xs text-red-400 border border-red-200 px-2 py-1 rounded hover:bg-red-50">Clear</button>}
+              </div>
+            </div>
+            {changelog.length===0
+              ?<p className="text-xs text-slate-400 italic text-center py-4">No changes logged yet — edits will appear here.</p>
+              :<div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+                {changelog.map(entry=>(
+                  <div key={entry.id} className="flex items-start gap-2 text-xs bg-slate-50 rounded-lg p-2.5 border border-slate-100">
+                    <span className={`flex-shrink-0 px-1.5 py-0.5 rounded font-semibold ${sectionColor(entry.section)}`}>{entry.section}</span>
+                    <span className="text-slate-700 flex-1 leading-snug">
+                      {entry.msg}
+                      {(entry.oldVal!=null||entry.newVal!=null)&&(
+                        <span className="block mt-1 text-slate-500">
+                          {entry.oldVal!=null&&<span className="line-through text-red-400 mr-1">{entry.oldVal}</span>}
+                          {entry.oldVal!=null&&entry.newVal!=null&&<span className="text-slate-300 mr-1">→</span>}
+                          {entry.newVal!=null&&<span className="text-green-600">{entry.newVal}</span>}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-slate-400 flex-shrink-0 tabular-nums">{fmtTime(entry.ts)}</span>
+                  </div>
+                ))}
+              </div>
+            }
+          </div>
+          {/* Tab access */}
+          <div>
+            <h4 className="font-semibold text-slate-700 mb-3">🔒 Tab Access</h4>
+            <div className="space-y-2">
+              {[
+                {label:"🍽️ Meal Plan", locked:mealsLocked, toggle:()=>{setMealsLocked(!mealsLocked);logChange("Admin",`Meals tab ${mealsLocked?"unlocked":"locked"}`);} },
+                {label:"🛒 Shopping List", locked:shoppingLocked, toggle:()=>{setShoppingLocked(!shoppingLocked);logChange("Admin",`Shopping tab ${shoppingLocked?"unlocked":"locked"}`);} },
+              ].map(({label,locked,toggle})=>(
+                <div key={label} className="flex items-center justify-between bg-slate-50 rounded-xl border border-slate-200 px-4 py-3">
+                  <div>
+                    <div className="text-sm font-medium text-slate-700">{label} — {locked?"locked for crew":"visible to all crew"}</div>
+                  </div>
+                  <button onClick={toggle}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-medium border transition-all ${locked?'bg-green-600 text-white border-green-700 hover:bg-green-700':'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'}`}>
+                    {locked?"Unlock":"Lock"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Reset */}
+          <div className="border-t border-slate-100 pt-4">
+            <button onClick={resetAll} className="text-sm text-red-500 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50">🔄 Reset all data to defaults</button>
+            <span className="text-xs text-slate-400 ml-2">Cannot be undone</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── App root ───────────────────────────────────────────────────────────────
+function App(){
+  const [tab,setTab]=useState("schedule");
+  const [meals,setMeals]=useShared("meals",INIT_MEALS);
+  const [shopping,setShopping]=useShared("shopping",INIT_SHOPPING);
+  const [crew,setCrew]=useShared("crew",INIT_CREW);
+  const [schedule,setSchedule]=useShared("schedule",INIT_SCHEDULE);
+  const [shoppingLocked,setShoppingLocked]=useShared("shoppingLocked",true);
+  const [mealsLocked,setMealsLocked]=useShared("mealsLocked",true);
+  const [changelog,setChangelog]=useShared("changelog",[]);
+  const [showAdmin,setShowAdmin]=useState(false);
+  const syncStatus=useSyncStatus();
+
+  const logChange=useCallback((section,msg,oldVal,newVal)=>{
+    setChangelog(cl=>[{id:uid(),ts:Date.now(),section,msg,oldVal,newVal},...(cl||[])].slice(0,300));
+  },[]);
+
+  useEffect(()=>{
+    const h=e=>{
+      setShopping(e.detail);
+      logChange("Shopping",`Shopping list imported from AI (${e.detail.length} items)`);
+    };
+    window.addEventListener("importShopping",h);
+    return()=>window.removeEventListener("importShopping",h);
+  },[]);
+
+  if(!meals||!shopping||!crew)return(
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center text-slate-500">
+        <div className="text-4xl mb-3">⛵</div>
+        <div className="text-lg font-medium">Loading trip data…</div>
+        <div className="text-sm mt-1 text-slate-400">{SB_READY?"Connecting to Supabase…":"Starting local mode…"}</div>
+      </div>
+    </div>
+  );
+
+  const doneMeals=meals.filter(m=>m.done).length;
+  const boughtItems=shopping.filter(s=>s.checked).length;
+  const tabs=[
+    {id:"schedule",label:"📋 Schedule", badge:null},
+    {id:"coffee",  label:"☕ Coffee",   badge:null},
+    {id:"meals",   label:"🍽️ Meals",    badge:doneMeals?`${doneMeals}/${meals.length}`:null, locked:!!mealsLocked},
+    {id:"shopping",label:"🛒 Shopping", badge:shoppingLocked?null:(boughtItems?`${boughtItems}/${shopping.length}`:null), locked:!!shoppingLocked},
+  ];
+  return(
+    <div className="min-h-screen">
+      <SetupBanner/>
+      <div className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-40">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <h1 className="text-lg font-bold text-slate-800">⛵ Fethiye 2026</h1>
+              <p className="text-xs text-slate-400">Lycian Coast · 13–20 June · 10 crew</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <SyncDot status={syncStatus}/>
+              <button onClick={()=>setShowAdmin(true)}
+                className="flex items-center gap-1.5 text-xs border border-slate-300 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-50 font-medium">
+                🔑 Admin
+              </button>
+            </div>
+          </div>
+          <div className="flex gap-1 -mb-px overflow-x-auto">
+            {tabs.map(t=>(
+              <button key={t.id} onClick={()=>setTab(t.id)}
+                className={`tab-btn px-4 py-2.5 text-sm flex items-center gap-1.5 flex-shrink-0 ${tab===t.id?'active':'text-slate-500 hover:text-slate-700'} ${t.locked?'opacity-40 cursor-not-allowed':''}`}>
+                {t.locked&&<span className="text-xs">🔒</span>}
+                {t.label}
+                {t.badge&&<span className="bg-blue-100 text-blue-700 text-xs font-bold px-1.5 py-0.5 rounded-full">{t.badge}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="pb-12">
+        {tab==="meals"   &&<MealsTab meals={meals} setMeals={setMeals} shopping={shopping} setShopping={setShopping} schedule={schedule||INIT_SCHEDULE} locked={!!mealsLocked} logChange={logChange}/>}
+        {tab==="shopping"&&<ShoppingTab shopping={shopping} setShopping={setShopping} locked={!!shoppingLocked} logChange={logChange}/>}
+        {tab==="schedule"&&<ScheduleTab meals={meals} setMeals={setMeals} schedule={schedule||INIT_SCHEDULE} setSchedule={setSchedule} logChange={logChange}/>}
+        {tab==="coffee"  &&<CoffeeTab crew={crew} setCrew={setCrew} logChange={logChange}/>}
+      </div>
+      {showAdmin&&<AdminModal meals={meals} setShopping={setShopping} shoppingLocked={!!shoppingLocked} setShoppingLocked={setShoppingLocked} mealsLocked={!!mealsLocked} setMealsLocked={setMealsLocked} changelog={changelog||[]} setChangelog={setChangelog} logChange={logChange} onClose={()=>setShowAdmin(false)}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
