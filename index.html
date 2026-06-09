@@ -1303,27 +1303,6 @@ Return ONLY a JSON array with this structure:
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-2xl">×</button>
         </div>
         <div className="p-6 space-y-6">
-          {/* Dietary rules */}
-          <div>
-            <h4 className="font-semibold text-slate-700 mb-3">🍽️ Crew Dietary Rules</h4>
-            <div className="rounded-xl border border-slate-200 overflow-hidden text-xs">
-              <div className="grid grid-cols-5 bg-slate-50 px-3 py-2 font-semibold text-slate-500 uppercase tracking-wide">
-                <span>Name</span><span>Group</span><span>Restrictions</span><span>Protein</span><span>Beverage</span>
-              </div>
-              {DIETARY_RULES.map(r=>{
-                const gs=GROUP_STYLE[r.group];
-                return(
-                  <div key={r.name} className="grid grid-cols-5 px-3 py-2 border-t border-slate-100">
-                    <span className="font-medium">{r.name}{r.note&&<span className="text-slate-400"> ({r.note})</span>}</span>
-                    <span>{gs?<span className={`${gs.bg} ${gs.text} px-1.5 py-0.5 rounded`}>G{r.group}</span>:<span className="text-slate-400">—</span>}</span>
-                    <span className={r.rules==="—"?"text-slate-400":"text-red-700 font-medium"}>{r.rules}{r.extra&&<span className="text-slate-400 font-normal"> · {r.extra}</span>}</span>
-                    <span className={r.protein==="High Protein"?"text-orange-600 font-medium":"text-slate-500"}>{r.protein}</span>
-                    <span className="text-slate-600">{r.bev}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
           {/* Trip rules */}
           <div>
             <h4 className="font-semibold text-slate-700 mb-3">📋 Trip Rules</h4>
