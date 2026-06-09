@@ -386,12 +386,12 @@ function useShared(key, init) {
       return;
     }
     // Initial fetch
-    sb.from('shared_state').select('value').eq('key', key).single().then(({data: row, error}) => {
+    sb.from('shared_state').select('value').eq('key', key).maybeSingle().then(({data: row, error}) => {
       if (row) {
         setData(row.value);
       } else {
         // First run — seed with defaults
-        sb.from('shared_state').upsert({key, value: init});
+        sb.from('shared_state').upsert({key, value: init}).then(null, e=>console.error('seed error',e));
         setData(init);
       }
     });
@@ -407,7 +407,7 @@ function useShared(key, init) {
     setData(prev => {
       if (prev === null) return prev;
       const next = typeof fn === 'function' ? fn(prev) : fn;
-      if (sb) sb.from('shared_state').upsert({key, value: next}).catch(e => console.error(e));
+      if (sb) sb.from('shared_state').upsert({key, value: next}).then(null, e=>console.error('upsert error',e));
       else ss(key, next);
       return next;
     });
