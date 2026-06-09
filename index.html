@@ -386,18 +386,18 @@ function useShared(key, init) {
       return;
     }
     // Initial fetch
-    sb.from('sailing_data').select('value').eq('key', key).single().then(({data: row, error}) => {
+    sb.from('shared_state').select('value').eq('key', key).single().then(({data: row, error}) => {
       if (row) {
         setData(row.value);
       } else {
         // First run — seed with defaults
-        sb.from('sailing_data').upsert({key, value: init});
+        sb.from('shared_state').upsert({key, value: init});
         setData(init);
       }
     });
     // Realtime subscription
     const channel = sb.channel('sailing_' + key)
-      .on('postgres_changes', {event: '*', schema: 'public', table: 'sailing_data', filter: `key=eq.${key}`},
+      .on('postgres_changes', {event: '*', schema: 'public', table: 'shared_state', filter: `key=eq.${key}`},
         (payload) => { if (payload.new?.value !== undefined) setData(payload.new.value); })
       .subscribe();
     return () => sb.removeChannel(channel);
@@ -407,7 +407,7 @@ function useShared(key, init) {
     setData(prev => {
       if (prev === null) return prev;
       const next = typeof fn === 'function' ? fn(prev) : fn;
-      if (sb) sb.from('sailing_data').upsert({key, value: next}).catch(e => console.error(e));
+      if (sb) sb.from('shared_state').upsert({key, value: next}).catch(e => console.error(e));
       else ss(key, next);
       return next;
     });
@@ -497,7 +497,7 @@ function SetupBanner(){
               <ol className="space-y-4 text-sm text-slate-700">
                 {[
                   ["Create a Supabase project","Go to supabase.com → sign in → New project → choose a name (e.g. fethiye-2026) → set a DB password → Create project. Wait ~1 min."],
-                  ["Create the data table","In the left sidebar: SQL Editor → New query → paste and run:\n\nCREATE TABLE sailing_data (\n  key text PRIMARY KEY,\n  value jsonb NOT NULL\n);\nALTER PUBLICATION supabase_realtime ADD TABLE sailing_data;"],
+                  ["Create the data table","In the left sidebar: SQL Editor → New query → paste and run:\n\nCREATE TABLE shared_state (\n  key text PRIMARY KEY,\n  value jsonb NOT NULL\n);\nALTER PUBLICATION supabase_realtime ADD TABLE shared_state;"],
                   ["Get your API keys","Project Settings (gear icon) → API → copy the Project URL and the anon public key."],
                   ["Paste keys into this file","Open sailing_trip.html in a text editor → find SUPABASE_URL and SUPABASE_ANON_KEY at the top → replace the placeholder values."],
                 ].map(([title,desc],i)=>(
@@ -1269,7 +1269,7 @@ Return ONLY a JSON array with this structure:
   const resetAll=()=>{
     if(confirm("Reset ALL data to defaults?")){
       localStorage.clear();
-      if(sb) sb.from('sailing_data').delete().neq('key','__never__').then(()=>window.location.reload());
+      if(sb) sb.from('shared_state').delete().neq('key','__never__').then(()=>window.location.reload());
       else window.location.reload();
     }
   };
