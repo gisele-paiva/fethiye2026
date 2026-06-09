@@ -1134,7 +1134,7 @@ function CoffeeTab({crew,setCrew,logChange}){
     {v:"nespresso",       l:"🫘 Nespresso"},
     {v:"nespresso-decaf", l:"🫘 Nespresso decaf pods"},
     {v:"frappe",          l:"🧊 Frappé"},
-    {v:"tea",             l:"🍵 Tea only"},
+    {v:"tea",             l:"🍵 Tea"},
     {v:"none",            l:"❌ None"},
   ];
   const extraTypeOpts=[
@@ -1227,7 +1227,6 @@ function CoffeeTab({crew,setCrew,logChange}){
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
           {icon:"☕",label:"Filter Coffee",value:`~${Math.round(sumCups("filter")*10)}g`,sub:`${sumCups("filter")} cups · ${days} days`},
-          {icon:"☕",label:"Filter Decaf",value:`~${Math.round(sumCups("filter-decaf")*10)}g`,sub:`${sumCups("filter-decaf")} cups · decaf only`,alert:sumCups("filter-decaf")>0},
           {icon:"🫘",label:"Nespresso",value:`${sumCups("nespresso")} pods`,sub:`${pcount("nespresso")} preference(s)`},
           {icon:"💊",label:"Nespresso Decaf ❗",value:`${sumCups("nespresso-decaf")} pods`,sub:"Must be decaf pods",alert:sumCups("nespresso-decaf")>0},
           {icon:"🧊",label:"Frappé (instant)",value:`~${Math.round(sumCups("frappe")*20)}g`,sub:`${pcount("frappe")} frappé lover(s)`},
@@ -1266,11 +1265,22 @@ NOTES: No pork in any dish. Fresh fish (Day 5) and shrimp (Day 6) bought locally
 Return ONLY a JSON array with this structure:
 [{"cat":"emoji + category","item":"name","qty":number,"unit":"string","when":"D1|FRESH|TOP","usedIn":"string","notes":"string"}]`;
   };
-  const resetAll=()=>{
+  const resetAll=async()=>{
     if(confirm("Reset ALL data to defaults?")){
       localStorage.clear();
-      if(sb) sb.from('shared_state').delete().neq('key','__never__').then(()=>window.location.reload());
-      else window.location.reload();
+      if(sb){
+        const defaults=[
+          {key:"meals",value:INIT_MEALS},
+          {key:"shopping",value:INIT_SHOPPING},
+          {key:"crew",value:INIT_CREW},
+          {key:"schedule",value:INIT_SCHEDULE},
+          {key:"mealsLocked",value:true},
+          {key:"shoppingLocked",value:true},
+          {key:"changelog",value:[]},
+        ];
+        await Promise.all(defaults.map(d=>sb.from('shared_state').upsert(d)));
+      }
+      window.location.reload();
     }
   };
   const sectionColor=(s)=>s==="Meals"?"bg-blue-100 text-blue-700":s==="Shopping"?"bg-green-100 text-green-700":s==="Coffee"?"bg-amber-100 text-amber-700":"bg-slate-100 text-slate-600";
