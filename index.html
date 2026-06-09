@@ -500,7 +500,6 @@ function SetupBanner(){
                   ["Create the data table","In the left sidebar: SQL Editor → New query → paste and run:\n\nCREATE TABLE sailing_data (\n  key text PRIMARY KEY,\n  value jsonb NOT NULL\n);\nALTER PUBLICATION supabase_realtime ADD TABLE sailing_data;"],
                   ["Get your API keys","Project Settings (gear icon) → API → copy the Project URL and the anon public key."],
                   ["Paste keys into this file","Open sailing_trip.html in a text editor → find SUPABASE_URL and SUPABASE_ANON_KEY at the top → replace the placeholder values."],
-                  ["Deploy to Netlify","Go to netlify.com/drop → drag & drop your updated sailing_trip.html → share the URL with the crew!"],
                 ].map(([title,desc],i)=>(
                   <li key={i} className="flex gap-3">
                     <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i+1}</span>
@@ -1304,25 +1303,6 @@ Return ONLY a JSON array with this structure:
         </div>
         <div className="p-6 space-y-6">
           {/* Trip rules */}
-          <div>
-            <h4 className="font-semibold text-slate-700 mb-3">📋 Trip Rules</h4>
-            <div className="grid md:grid-cols-2 gap-2 text-xs">
-              {[["🚫 No pork","Julia · Ali · Cüneyt — avoid pork entirely"],
-                ["🍗 No chicken (general)","Gisele Paiva. Exception: Strogonoff de Frango (she agreed)"],
-                ["🦐 No seafood","Bruno can't eat seafood/shellfish. Always have an alternative"],
-                ["🌿 Annika","Not every meal with meat. Flag veggie-friendly options"],
-                ["🌶️ Spicy on the side","Renato — serve isot/pul biber separately"],
-                ["💊 Decaf only","Gisele Paiva must only drink decaf Nespresso"],
-                ["🐟 Fresh seafood","Buy fish/shrimp locally (Days 5 & 6) — don't stock Day 1"],
-                ["♻️ Zero waste","Days 6-7 use up remaining provisions"],
-              ].map(([k,v])=>(
-                <div key={k} className="bg-slate-50 rounded-lg p-2.5 border border-slate-200">
-                  <div className="font-semibold text-slate-700">{k}</div>
-                  <div className="text-slate-500 mt-0.5">{v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
           {/* AI regen */}
           <div>
             <h4 className="font-semibold text-slate-700 mb-2">🤖 Regenerate Shopping List with AI</h4>
@@ -1357,16 +1337,6 @@ Return ONLY a JSON array with this structure:
                 </div>
               </div>
             )}
-          </div>
-          {/* Supabase deploy */}
-          <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 text-sm">
-            <h4 className="font-semibold text-blue-800 mb-2">🚀 Deploy to Netlify</h4>
-            <ol className="text-xs text-blue-700 space-y-1">
-              <li>1. Make sure SUPABASE_URL and SUPABASE_ANON_KEY are filled in (top of the HTML file)</li>
-              <li>2. Go to <strong>netlify.com/drop</strong></li>
-              <li>3. Drag & drop <strong>sailing_trip.html</strong> into the page</li>
-              <li>4. Copy the URL you get (e.g. xyz.netlify.app) and share with the crew</li>
-            </ol>
           </div>
           {/* Change Log */}
           <div>
