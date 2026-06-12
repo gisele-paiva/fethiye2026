@@ -1315,9 +1315,10 @@ function AdminModal({dishes,setShopping,shoppingLocked,setShoppingLocked,changel
       const init=INIT_SCHEDULE[i]||{};
       const d=dishMap[r.mealId];
       if(!d) return null;
-      const note=d.note?`\n  Alternatives: ${d.note}`:"";
-      return `- ${r.day||init.day} ${r.meal||init.meal} (Group ${r.cook} cooks): ${d.dish}\n  ${d.desc}${note}`;
-    }).filter(Boolean).join("\n");
+      const note=d.note?`\n  Dietary alternatives: ${d.note}`:"";
+      const recipe=d.recipe?`\n  Recipe: ${d.recipe.replace(/\n/g,' | ')}`:"";
+      return `- ${r.day||init.day} ${r.meal||init.meal} (Group ${r.cook} cooks): ${d.dish}\n  ${d.desc}${note}${recipe}`;
+    }).filter(Boolean).join("\n\n");
     // Dietary restrictions from CREW_PROFILES
     const rl=CREW_PROFILES.map(p=>{
       const parts=[];
