@@ -1333,6 +1333,19 @@ function AdminModal({dishes,setShopping,shoppingLocked,setShoppingLocked,changel
       const extras=(p.extras||[]).map(e=>`${e.cups} ${e.type}`).join(', ');
       return `- ${p.name}: ${p.cups} ${mainType}/day${extras?', also '+extras:''}`;
     }).filter(Boolean).join("\n");
+    // Breakfast preferences per person
+    const breakfastLines=CREW_PROFILES.map(p=>`- ${p.name}: ${p.breakfast}`).join("\n");
+    // Drink preferences per person
+    const drinkLines=CREW_PROFILES.map(p=>{
+      const alc=[];
+      if(p.beer&&p.beer!=='—'&&p.beer!=='none') alc.push(`beer: ${p.beer}`);
+      if(p.wine&&p.wine!=='—'&&p.wine!=='none') alc.push(`wine: ${p.wine}`);
+      if(p.liquor&&p.liquor!=='—'&&p.liquor!=='none') alc.push(`liquor: ${p.liquor}`);
+      const alcStr=alc.length?alc.join(', '):'no alcohol';
+      const nonAlcStr=p.nonAlc&&p.nonAlc!=='—'?`non-alc: ${p.nonAlc}`:'';
+      const perDay=p.alcoholPerDay&&p.alcoholPerDay!=='0'?` (~${p.alcoholPerDay} drinks/day)`:'';
+      return `- ${p.name}: ${alcStr}${perDay}${nonAlcStr?'; '+nonAlcStr:''}`;
+    }).join("\n");
     return `You are helping plan a sailing trip shopping list for 10 people, 7 nights, Fethiye Turkey (13-20 June 2026). All ingredients must be available in Turkish markets (kasap for meat, local bazaar for produce).
 
 CREW DIETARY RESTRICTIONS:
@@ -1341,15 +1354,22 @@ ${rl}
 MEAL PLAN (9 on-board cooking slots):
 ${ml}
 
+BREAKFAST PREFERENCES (self-service every morning — 7 days):
+${breakfastLines}
+
 COFFEE & TEA (per person per day):
 ${coffeeLines}
+
+DRINKS (alcoholic & non-alcoholic — stock for 7 days):
+${drinkLines}
 
 SHOPPING RULES:
 - Mark as D1: buy in Fethiye on Day 1 (departure day)
 - Mark as FRESH: buy locally during the trip (fish in Ekincik/Gemiler Day 5, shrimp in Göcek Day 6)
 - Mark as TOP: top-up in Ekincik market (Day 3–4), e.g. mushrooms, fresh produce
 - No pork in any item
-- Include all breakfast items (self-service each morning: yogurt, fruit, granola, eggs, bread, cheese, ham, honey, jam, peanut butter)
+- Size breakfast quantities for 10 people × 7 mornings based on the preferences above
+- Size drink quantities based on individual preferences and drinks/day above
 - Include pantry staples (olive oil, salt, pepper, spices) and coffee/tea station items
 - Include alternatives for Bruno (no seafood) on fish/shrimp days
 
