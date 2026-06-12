@@ -285,7 +285,19 @@ const INIT_MEALS=[
 
 // ── Dish library — the single source of truth for dishes/recipes ───────────
 // Dishes are edited in the Recipes tab and referenced from the Schedule tab.
-const INIT_DISHES=INIT_MEALS.map(m=>({id:m.id,dish:m.dish,desc:m.desc,note:m.note||"",recipe:RECIPES[m.id]||""}));
+// TURKEY_TIPS seeded here so they're editable per-dish
+const TURKEY_TIPS_INIT={
+  m1:"🇹🇷 All ingredients are Turkish staples — bulgur, tahini, nar ekşisi, beyaz peynir and olives are in every market. Hummus is sold ready-made in supermarkets. Lavash and pita are at any bakery (fırın).",
+  m2:"🇹🇷 Buy beef at a kasap (butcher) — ask for antrikot (ribeye) or bonfile (sirloin) for grilling. Red wine vinegar = kırmızı şarap sirkesi, available in supermarkets. White rice and green peppers are everywhere.",
+  m3:"🇹🇷 Chicken (tavuk) at any kasap or supermarket. Mushrooms (mantar) — buy fresh in Ekincik market. Heavy cream = krema, sour cream = ekşi krema or substitute with thick süzme yoğurt. Dijon mustard in larger supermarkets (Migros/Carrefour).",
+  m4:"🇹🇷 Eggplant (patlıcan) is a Turkish staple — very fresh and cheap. Ground beef (kıyma) at any kasap. Cinnamon (tarçın) and allspice (yenibahar) are standard spices. Flour (un) and butter (tereyağı) everywhere. Parmesan may need a larger supermarket — substitute with local aged kaşar peyniri.",
+  m5:"🇹🇷 Ground beef (kıyma) at kasap. Spaghetti (spagetti) in all supermarkets. Canned tomatoes (domates konservesi) and tomato paste (salça) are pantry staples. Bay leaves (defne yaprağı) and oregano (kekik) easily found.",
+  m6:"🇹🇷 Pastırma is a Turkish specialty — get it pre-sliced from a deli or market. Beyaz peynir, olives and eggs (yumurta) are everywhere. Buy bread fresh from a fırın each morning.",
+  m7:"🇹🇷 Buy levrek (sea bass) or çipura (sea bream) fresh from local fishermen or the market dock. Dill (dereotu) and parsley (maydanoz) are common fresh herbs. Lemons (limon) everywhere. Olive oil (zeytinyağı) is premium quality in Turkey.",
+  m8:"🇹🇷 Cubed beef (kuşbaşı et) sold ready-cut at kasap. Tomatoes, onions, peppers — all very fresh and local. Cumin (kimyon) is a standard Turkish spice. White rice (beyaz pirinç) at every shop.",
+  m9:"🇹🇷 Buy karides (shrimp) fresh in Göcek — ask at the marina or fish market. Butter (tereyağı) and garlic (sarımsak) everywhere. White wine for cooking at supermarkets or wine shops. Halloumi (hellim) available in Turkish supermarkets.",
+};
+const INIT_DISHES=INIT_MEALS.map(m=>({id:m.id,dish:m.dish,desc:m.desc,note:m.note||"",recipe:RECIPES[m.id]||"",tip:TURKEY_TIPS_INIT[m.id]||""}));
 
 const INIT_SHOPPING=[
   {id:"s1",cat:"🥩 Meat & Poultry",item:"Ground beef (lean)",qty:2.5,unit:"kg",when:"D1",usedIn:"Bolognese · Moussaka",notes:"~1.2 kg per dish",checked:false},
@@ -1040,25 +1052,22 @@ function ScheduleTab({dishes, schedule, setSchedule, shopping, setShopping, logC
 }
 
 // ── Coffee Tab ─────────────────────────────────────────────────────────────
-const TURKEY_TIPS={
-  m1:"🇹🇷 All ingredients are Turkish staples — bulgur, tahini, nar ekşisi, beyaz peynir and olives are in every market. Hummus is sold ready-made in supermarkets. Lavash and pita are at any bakery (fırın).",
-  m2:"🇹🇷 Buy beef at a kasap (butcher) — ask for antrikot (ribeye) or bonfile (sirloin) for grilling. Red wine vinegar = kırmızı şarap sirkesi, available in supermarkets. White rice and green peppers are everywhere.",
-  m3:"🇹🇷 Chicken (tavuk) at any kasap or supermarket. Mushrooms (mantar) — buy fresh in Ekincik market. Heavy cream = krema, sour cream = ekşi krema or substitute with thick süzme yoğurt. Dijon mustard in larger supermarkets (Migros/Carrefour).",
-  m4:"🇹🇷 Eggplant (patlıcan) is a Turkish staple — very fresh and cheap. Ground beef (kıyma) at any kasap. Cinnamon (tarçın) and allspice (yenibahar) are standard spices. Flour (un) and butter (tereyağı) everywhere. Parmesan may need a larger supermarket — substitute with local aged kaşar peyniri.",
-  m5:"🇹🇷 Ground beef (kıyma) at kasap. Spaghetti (spagetti) in all supermarkets. Canned tomatoes (domates konservesi) and tomato paste (salça) are pantry staples. Bay leaves (defne yaprağı) and oregano (kekik) easily found.",
-  m6:"🇹🇷 Pastırma is a Turkish specialty — get it pre-sliced from a deli or market. Beyaz peynir, olives and eggs (yumurta) are everywhere. Buy bread fresh from a fırın each morning.",
-  m7:"🇹🇷 Buy levrek (sea bass) or çipura (sea bream) fresh from local fishermen or the market dock. Dill (dereotu) and parsley (maydanoz) are common fresh herbs. Lemons (limon) everywhere. Olive oil (zeytinyağı) is premium quality in Turkey.",
-  m8:"🇹🇷 Cubed beef (kuşbaşı et) sold ready-cut at kasap. Tomatoes, onions, peppers — all very fresh and local. Cumin (kimyon) is a standard Turkish spice. White rice (beyaz pirinç) at every shop.",
-  m9:"🇹🇷 Buy karides (shrimp) fresh in Göcek — ask at the marina or fish market. Butter (tereyağı) and garlic (sarımsak) everywhere. White wine for cooking at supermarkets or wine shops. Halloumi (hellim) available in Turkish supermarkets.",
-};
 
 function RecipesTab({dishes, setDishes, schedule, logChange}){
   const [openId, setOpenId]=useState(null);
   const slotsByDish={};
+  const scheduleOrder={};
   (schedule||[]).forEach((r,i)=>{
     if(!r.mealId) return;
     const init=INIT_SCHEDULE[i]||{};
     (slotsByDish[r.mealId]=slotsByDish[r.mealId]||[]).push({day:r.day||init.day,meal:r.meal||init.meal,cook:r.cook});
+    if(scheduleOrder[r.mealId]===undefined) scheduleOrder[r.mealId]=i;
+  });
+
+  const sortedDishes=[...dishes].sort((a,b)=>{
+    const ai=scheduleOrder[a.id]??Infinity;
+    const bi=scheduleOrder[b.id]??Infinity;
+    return ai-bi;
   });
 
   const update=(id,patch,label)=>{
@@ -1087,9 +1096,9 @@ function RecipesTab({dishes, setDishes, schedule, logChange}){
       </div>
       <p className="text-sm text-slate-500 mb-5">The dish library — edit names, descriptions, notes and recipes here. Assign dishes to meals in the Schedule tab. Unused dishes are fine to keep around.</p>
       <div className="space-y-3">
-        {dishes.map(dish=>{
+        {sortedDishes.map(dish=>{
           const slots=slotsByDish[dish.id]||[];
-          const tip=TURKEY_TIPS[dish.id];
+          const tip=dish.tip||"";
           const isOpen=openId===dish.id;
           return(
             <div key={dish.id} className="rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white">
@@ -1132,11 +1141,10 @@ function RecipesTab({dishes, setDishes, schedule, logChange}){
                       <EditableText value={dish.recipe||""} onChange={v=>update(dish.id,{recipe:v},"recipe")} multiline placeholder="Recipe steps..." className="whitespace-pre-line w-full"/>
                     </div>
                   </div>
-                  {tip&&(
-                    <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs text-red-700 leading-relaxed">
-                      {tip}
-                    </div>
-                  )}
+                  <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs text-red-700 leading-relaxed">
+                    <span className="font-semibold block mb-1">🇹🇷 Where to buy in Turkey</span>
+                    <EditableText value={tip} onChange={v=>update(dish.id,{tip:v},"Turkey tip")} multiline placeholder="Add local shopping tips..."/>
+                  </div>
                   {slots.length===0&&(
                     <button onClick={()=>removeDish(dish.id)} className="text-xs text-red-500 border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50">🗑 Delete dish</button>
                   )}
