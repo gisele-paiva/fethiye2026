@@ -163,22 +163,22 @@ const WHEN={
 // Clean: A=5 · B=5 · C=5 (verified: no consecutive, no cook+clean same slot)
 const INIT_SCHEDULE=[
   {day:"Day 2",date:"14 Jun, Sun",meal:"Breakfast",type:"self-service",desc:"Self-service — everyone brings ingredients",clean:"A"},
-  {mealId:"m1",cook:"A",clean:"B"},
-  {mealId:"m2",cook:"B",clean:"C"},
+  {day:"Day 2",date:"14 Jun, Sun",meal:"Lunch",mealId:"m1",cook:"A",clean:"B"},
+  {day:"Day 2",date:"14 Jun, Sun",meal:"Dinner",mealId:"m2",cook:"B",clean:"C"},
   {day:"Day 3",date:"15 Jun, Mon",meal:"Breakfast",type:"self-service",desc:"Sandwiches on the way (eat while sailing)",clean:"B"},
-  {mealId:"m3",cook:"C",clean:"A"},
-  {mealId:"m4",cook:"A",clean:"C"},
+  {day:"Day 3",date:"15 Jun, Mon",meal:"Lunch",mealId:"m3",cook:"C",clean:"A"},
+  {day:"Day 3",date:"15 Jun, Mon",meal:"Dinner",mealId:"m4",cook:"A",clean:"C"},
   {day:"Day 4",date:"16 Jun, Tue",meal:"Breakfast",type:"self-service",desc:"Self-service",clean:"C"},
   {day:"Day 4",date:"16 Jun, Tue",meal:"Lunch",type:"restaurant",desc:"Restaurant in Dalyan (Belediye Café)"},
-  {mealId:"m5",cook:"B",clean:"A"},
+  {day:"Day 4",date:"16 Jun, Tue",meal:"Dinner",mealId:"m5",cook:"B",clean:"A"},
   {day:"Day 5",date:"17 Jun, Wed",meal:"Breakfast",type:"self-service",desc:"Self-service",clean:"B"},
-  {mealId:"m6",cook:"C",clean:"B"},
-  {mealId:"m7",cook:"A",clean:"C"},
+  {day:"Day 5",date:"17 Jun, Wed",meal:"Lunch",mealId:"m6",cook:"C",clean:"B"},
+  {day:"Day 5",date:"17 Jun, Wed",meal:"Dinner",mealId:"m7",cook:"A",clean:"C"},
   {day:"Day 6",date:"18 Jun, Thu",meal:"Breakfast",type:"self-service",desc:"Self-service",clean:"C"},
   {day:"Day 6",date:"18 Jun, Thu",meal:"Lunch",type:"restaurant",desc:"Restaurants at Kaya Köy"},
-  {mealId:"m8",cook:"B",clean:"A"},
+  {day:"Day 6",date:"18 Jun, Thu",meal:"Dinner",mealId:"m8",cook:"B",clean:"A"},
   {day:"Day 7",date:"19 Jun, Fri",meal:"Breakfast",type:"self-service",desc:"Self-service",clean:"A"},
-  {mealId:"m9",cook:"C",clean:"B"},
+  {day:"Day 7",date:"19 Jun, Fri",meal:"Lunch",mealId:"m9",cook:"C",clean:"B"},
 ];
 
 // ── Recipe text per meal ─────────────────────────────────────────────────────
@@ -282,6 +282,10 @@ const INIT_MEALS=[
   {id:"m8",day:"Day 6",date:"18 Jun, Thu",meal:"Dinner",group:"B",dish:"🥩 Beef Picadinho + Rice",desc:"Brazilian-style beef picadinho with tomatoes, onions, peppers and white rice.",tags:[],note:"Annika: mushroom + pepper version (same sauce, no beef). Julia: extra chilli/isot on the side.",done:false},
   {id:"m9",day:"Day 7",date:"19 Jun, Fri",meal:"Lunch",group:"C",dish:"🦐 Garlic Butter Shrimp + Rice",desc:"Fresh shrimp in garlic butter sauce with white rice.",tags:[],note:"Bruno: grilled chicken in garlic butter instead of shrimp. Buy shrimp fresh in Göcek.",done:false},
 ];
+
+// ── Dish library — the single source of truth for dishes/recipes ───────────
+// Dishes are edited in the Recipes tab and referenced from the Schedule tab.
+const INIT_DISHES=INIT_MEALS.map(m=>({id:m.id,dish:m.dish,desc:m.desc,note:m.note||"",recipe:RECIPES[m.id]||""}));
 
 const INIT_SHOPPING=[
   {id:"s1",cat:"🥩 Meat & Poultry",item:"Ground beef (lean)",qty:2.5,unit:"kg",when:"D1",usedIn:"Bolognese · Moussaka",notes:"~1.2 kg per dish",checked:false},
@@ -539,20 +543,16 @@ function SyncDot({status}){
 }
 
 // ── Recipe Modal ───────────────────────────────────────────────────────────
-function RecipeModal({meal, setMeals, shopping, setShopping, logChange, onClose}){
-  const ingredientIds = MEAL_INGREDIENTS[meal.id] || [];
+function RecipeModal({dish, slot, shopping, setShopping, logChange, onClose}){
+  const ingredientIds = MEAL_INGREDIENTS[dish.id] || [];
   const ingredients = ingredientIds.map(id => shopping.find(s => s.id === id)).filter(Boolean);
-  const recipe = meal.recipe ?? (RECIPES[meal.id] || "No recipe yet.");
-  const gs = GROUP_STYLE[meal.group] || {bg:"bg-gray-100",text:"text-gray-700"};
+  const recipe = dish.recipe || "No recipe yet.";
+  const gs = GROUP_STYLE[slot?.cook] || {bg:"bg-gray-100",text:"text-gray-700"};
 
   const updateQty = (id, qty) => {
     const item = shopping.find(s => s.id === id);
     setShopping(s => s.map(x => x.id === id ? {...x, qty} : x));
     if(item) logChange("Shopping", `${item.item}: qty updated to ${qty} ${item.unit} (via recipe)`);
-  };
-  const updateRecipe = (text) => {
-    setMeals(ms => ms.map(m => m.id === meal.id ? {...m, recipe: text} : m));
-    logChange("Meals", `${meal.dish}: recipe updated`);
   };
 
   return(
@@ -561,24 +561,24 @@ function RecipeModal({meal, setMeals, shopping, setShopping, logChange, onClose}
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">{meal.day} · {meal.meal}</span>
-              {meal.group!=="—"&&<span className={`text-xs ${gs.bg} ${gs.text} px-2 py-0.5 rounded font-medium`}>Group {meal.group}</span>}
+              {slot&&<span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">{slot.day} · {slot.meal}</span>}
+              {slot?.cook&&slot.cook!=="—"&&<span className={`text-xs ${gs.bg} ${gs.text} px-2 py-0.5 rounded font-medium`}>Group {slot.cook}</span>}
             </div>
-            <h3 className="font-bold text-slate-800 text-lg">{meal.dish}</h3>
+            <h3 className="font-bold text-slate-800 text-lg">{dish.dish}</h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-2xl flex-shrink-0">×</button>
         </div>
         <div className="p-6 space-y-6">
           {/* Description + notes */}
           <div className="text-sm text-slate-600 bg-slate-50 rounded-xl p-4 border border-slate-200">
-            <p>{meal.desc}</p>
-            {meal.note&&<p className="mt-2 text-blue-700 font-medium">⚠️ {meal.note}</p>}
+            <p>{dish.desc}</p>
+            {dish.note&&<p className="mt-2 text-blue-700 font-medium">⚠️ {dish.note}</p>}
           </div>
           {/* Recipe steps */}
           <div>
             <h4 className="font-semibold text-slate-700 mb-3">👨‍🍳 Recipe</h4>
-            <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 text-sm text-slate-700 leading-relaxed">
-              <EditableText value={recipe} onChange={updateRecipe} multiline className="whitespace-pre-line w-full"/>
+            <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+              {recipe}
             </div>
           </div>
           {/* Ingredients — linked to shopping list */}
@@ -608,89 +608,6 @@ function RecipeModal({meal, setMeals, shopping, setShopping, logChange, onClose}
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── Meals Tab ──────────────────────────────────────────────────────────────
-function MealsTab({meals,setMeals,shopping,setShopping,schedule,locked,logChange}){
-  if(locked) return(
-    <div className="max-w-5xl mx-auto p-4 flex flex-col items-center justify-center min-h-[40vh] text-center">
-      <div className="text-5xl mb-4">🔒</div>
-      <h3 className="text-lg font-bold text-slate-700 mb-2">Meal plan not available yet</h3>
-      <p className="text-sm text-slate-400 max-w-xs">The meal plan will be unlocked soon. Check the Schedule tab for the overview.</p>
-    </div>
-  );
-  const [recipeFor,setRecipeFor]=useState(null);
-  const mealCookGroup=Object.fromEntries((schedule||[]).filter(r=>r.mealId).map(r=>[r.mealId,r.cook]));
-  const update=(id,patch)=>{
-    const meal=meals.find(m=>m.id===id);
-    setMeals(ms=>ms.map(m=>m.id===id?{...m,...patch}:m));
-    if(!meal) return;
-    if('done' in patch) logChange("Meals",`${meal.day} · ${meal.dish}: marked as ${patch.done?'✓ done':'undone'}`);
-    else if('dish' in patch) logChange("Meals",`${meal.day} · ${meal.meal}: dish renamed`,meal.dish,patch.dish);
-    else if('desc' in patch) logChange("Meals",`${meal.day} · ${meal.dish}: description updated`,meal.desc,patch.desc);
-    else if('note' in patch) logChange("Meals",`${meal.day} · ${meal.dish}: dietary note updated`,meal.note||"",patch.note||"");
-  };
-  const done=meals.filter(m=>m.done).length;
-  const days=[...new Set(meals.map(m=>m.day))];
-  return(
-    <div className="max-w-5xl mx-auto p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-xl font-bold text-slate-800">🍽️ Meal Plan</h2>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-500">{done}/{meals.length} cooked</span>
-          <div className="w-32 h-2 bg-slate-200 rounded-full"><div className="h-2 bg-green-500 rounded-full transition-all" style={{width:`${(done/meals.length)*100}%`}}/></div>
-        </div>
-      </div>
-      <p className="text-xs text-slate-400 mb-4 italic">💡 Click any dish name, description or note to edit. Hit 📖 to see the full recipe and linked ingredients.</p>
-      {days.map(day=>(
-        <div key={day} className="mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="bg-slate-700 text-white text-xs font-bold px-2 py-1 rounded">{day}</span>
-            <span className="text-xs text-slate-400">{meals.find(m=>m.day===day)?.date}</span>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {meals.filter(m=>m.day===day).map(meal=>{
-              const cookGroup=mealCookGroup[meal.id];
-              const gs=GROUP_STYLE[cookGroup]||{bg:"bg-gray-100",text:"text-gray-700",border:"border-gray-300"};
-              return(
-                <div key={meal.id} className={`rounded-xl border-2 p-4 bg-white shadow-sm transition-all ${meal.done?'opacity-55 border-green-400':gs.border}`}>
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex gap-1 flex-wrap">
-                      <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">{meal.meal}</span>
-                      {cookGroup&&cookGroup!=="ALL"&&<span className={`text-xs ${gs.bg} ${gs.text} px-2 py-0.5 rounded font-medium`}>Group {cookGroup}</span>}
-                      {cookGroup==="ALL"&&<span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-medium">All Hands</span>}
-                    </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <button onClick={()=>setRecipeFor(meal)}
-                        className="text-xs px-2 py-1 rounded-lg border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100" title="View recipe">
-                        📖
-                      </button>
-                      <button onClick={()=>update(meal.id,{done:!meal.done})}
-                        className={`text-xs font-bold px-2 py-1 rounded-lg border transition-all ${meal.done?'bg-green-100 text-green-700 border-green-400':'bg-white text-slate-500 border-slate-300 hover:border-green-400 hover:text-green-600'}`}>
-                        {meal.done?'✓':'Done'}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="text-base font-semibold text-slate-800 mb-1">
-                    <EditableText value={meal.dish} onChange={v=>update(meal.id,{dish:v})} placeholder="Dish name"/>
-                  </div>
-                  <div className="text-xs text-slate-500 mb-2 leading-snug">
-                    <EditableText value={meal.desc} onChange={v=>update(meal.id,{desc:v})} multiline placeholder="Description..."/>
-                  </div>
-                  {meal.note&&(
-                    <div className="text-xs text-blue-600 bg-blue-50 rounded p-1.5 border border-blue-100">
-                      <EditableText value={meal.note} onChange={v=>update(meal.id,{note:v})} placeholder="Dietary note..."/>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-      {recipeFor&&<RecipeModal meal={recipeFor} setMeals={setMeals} shopping={shopping} setShopping={setShopping} logChange={logChange} onClose={()=>setRecipeFor(null)}/>}
     </div>
   );
 }
@@ -941,10 +858,11 @@ function CrewPreferences(){
   );
 }
 
-function ScheduleTab({meals, setMeals, schedule, setSchedule, logChange}){
+function ScheduleTab({dishes, schedule, setSchedule, shopping, setShopping, logChange}){
   const groups=["A","B","C"];
-  const mealById=Object.fromEntries(meals.map(m=>[m.id,m]));
+  const dishById=Object.fromEntries(dishes.map(d=>[d.id,d]));
   const [editMode,setEditMode]=useState(false);
+  const [recipeFor,setRecipeFor]=useState(null);
 
   const cookCount=Object.fromEntries(groups.map(g=>[g, schedule.filter(s=>s.mealId&&(s.cook===g||s.cook==="ALL")).length]));
   const cleanCount=Object.fromEntries(groups.map(g=>[g, schedule.filter(s=>s.clean&&(s.clean===g||s.clean==="ALL")).length]));
@@ -1046,24 +964,40 @@ function ScheduleTab({meals, setMeals, schedule, setSchedule, logChange}){
                     </tr>
                   );
                 }
-                const meal=mealById[row.mealId];
-                if(!meal) return null;
+                const init=INIT_SCHEDULE[i]||{};
+                const day=row.day||init.day, date=row.date||init.date, mealName=row.meal||init.meal;
+                const dish=dishById[row.mealId];
                 const isAll=row.cook==="ALL";
                 const cookGs=GROUP_STYLE[row.cook];
                 const cleanGs=GROUP_STYLE[row.clean];
                 return(
-                  <tr key={row.mealId} className={`border-b border-slate-100 ${meal.done?'opacity-50 bg-slate-50/40':'bg-white'}`}>
+                  <tr key={`meal-${i}`} className={`border-b border-slate-100 ${row.done?'opacity-50 bg-slate-50/40':'bg-white'}`}>
                     <td className="px-4 py-3 text-xs text-slate-400 font-mono">{i+1}</td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-slate-700">{meal.day} · {meal.meal}</div>
-                      <div className="text-xs text-slate-400">{meal.date}</div>
+                      <div className="font-medium text-slate-700">{day} · {mealName}</div>
+                      <div className="text-xs text-slate-400">{date}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-slate-800">
-                        <EditableText value={meal.dish} onChange={v=>{logChange("Meals",`${meal.day} · ${meal.meal}: dish renamed`,meal.dish,v);setMeals(ms=>ms.map(m=>m.id===meal.id?{...m,dish:v}:m));}} placeholder="Dish name"/>
-                      </div>
-                      {(meal.note||editMode)&&<div className="text-xs text-amber-700 mt-1 leading-snug flex gap-1"><span>⚠️</span><EditableText value={meal.note||""} onChange={v=>{logChange("Meals",`${meal.day} · ${meal.meal}: note updated`,meal.note||"",v);setMeals(ms=>ms.map(m=>m.id===meal.id?{...m,note:v}:m));}} placeholder="Add dietary note..."/></div>}
-                      {meal.done&&<span className="text-xs text-green-600 font-semibold">✓ Done</span>}
+                      {editMode
+                        ?<select className="text-xs py-1 max-w-[220px]" value={row.mealId} onChange={e=>updateRow(i,{mealId:e.target.value})}>
+                            {dishes.map(d=><option key={d.id} value={d.id}>{d.dish}</option>)}
+                          </select>
+                        :<div className="flex items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-slate-800">{dish?dish.dish:"⚠️ Dish not found"}</div>
+                              {dish?.note&&<div className="text-xs text-amber-700 mt-1 leading-snug">⚠️ {dish.note}</div>}
+                              {row.done&&<span className="text-xs text-green-600 font-semibold">✓ Done</span>}
+                            </div>
+                            <div className="flex gap-1 flex-shrink-0">
+                              {dish&&<button onClick={()=>setRecipeFor({dish,slot:{day,meal:mealName,cook:row.cook}})}
+                                className="text-xs px-2 py-1 rounded-lg border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100" title="View recipe">📖</button>}
+                              <button onClick={()=>{setSchedule(sc=>sc.map((r,j)=>j===i?{...r,done:!r.done}:r));logChange("Schedule",`${day} · ${mealName}: marked as ${row.done?'undone':'✓ done'}`);}}
+                                className={`text-xs font-bold px-2 py-1 rounded-lg border transition-all ${row.done?'bg-green-100 text-green-700 border-green-400':'bg-white text-slate-500 border-slate-300 hover:border-green-400 hover:text-green-600'}`}>
+                                {row.done?'✓':'Done'}
+                              </button>
+                            </div>
+                          </div>
+                      }
                     </td>
                     <td className="px-4 py-3 text-center">
                       {isAll
@@ -1099,6 +1033,7 @@ function ScheduleTab({meals, setMeals, schedule, setSchedule, logChange}){
       {/* Crew preferences */}
       <CrewPreferences/>
 
+      {recipeFor&&<RecipeModal dish={recipeFor.dish} slot={recipeFor.slot} shopping={shopping} setShopping={setShopping} logChange={logChange} onClose={()=>setRecipeFor(null)}/>}
     </div>
   );
 }
@@ -1116,58 +1051,93 @@ const TURKEY_TIPS={
   m9:"🇹🇷 Buy karides (shrimp) fresh in Göcek — ask at the marina or fish market. Butter (tereyağı) and garlic (sarımsak) everywhere. White wine for cooking at supermarkets or wine shops. Halloumi (hellim) available in Turkish supermarkets.",
 };
 
-function RecipesTab({meals, schedule}){
+function RecipesTab({dishes, setDishes, schedule, logChange}){
   const [openId, setOpenId]=useState(null);
-  const mealCookGroup=Object.fromEntries((schedule||[]).filter(r=>r.mealId).map(r=>[r.mealId,r.cook]));
-  const initMealMap=Object.fromEntries(INIT_MEALS.map(m=>[m.id,m]));
+  const slotsByDish={};
+  (schedule||[]).forEach((r,i)=>{
+    if(!r.mealId) return;
+    const init=INIT_SCHEDULE[i]||{};
+    (slotsByDish[r.mealId]=slotsByDish[r.mealId]||[]).push({day:r.day||init.day,meal:r.meal||init.meal,cook:r.cook});
+  });
+
+  const update=(id,patch,label)=>{
+    const dish=dishes.find(d=>d.id===id);
+    setDishes(ds=>ds.map(d=>d.id===id?{...d,...patch}:d));
+    if(dish) logChange&&logChange("Recipes",`${dish.dish}: ${label} updated`);
+  };
+  const addDish=()=>{
+    const id="d"+uid();
+    setDishes(ds=>[...ds,{id,dish:"🍴 New dish",desc:"",note:"",recipe:""}]);
+    setOpenId(id);
+  };
+  const removeDish=(id)=>{
+    const dish=dishes.find(d=>d.id===id);
+    if(confirm(`Delete "${dish?.dish}"?`)){
+      setDishes(ds=>ds.filter(d=>d.id!==id));
+      logChange&&logChange("Recipes",`${dish?.dish}: deleted from library`);
+    }
+  };
 
   return(
     <div className="max-w-3xl mx-auto p-4">
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-xl font-bold text-slate-800">📖 Recipes</h2>
+        <button onClick={addDish} className="text-xs px-3 py-1.5 rounded-lg border border-green-300 text-green-700 bg-green-50 hover:bg-green-100 font-medium">＋ Add recipe</button>
       </div>
-      <p className="text-sm text-slate-500 mb-5">All 9 cooked meals with full recipes, dietary alternatives and Turkey ingredient tips.</p>
+      <p className="text-sm text-slate-500 mb-5">The dish library — edit names, descriptions, notes and recipes here. Assign dishes to meals in the Schedule tab. Unused dishes are fine to keep around.</p>
       <div className="space-y-3">
-        {meals.map(meal=>{
-          const init=initMealMap[meal.id]||meal;
-          const recipe=RECIPES[meal.id]||"No recipe yet.";
-          const desc=init.desc;
-          const note=init.note;
-          const dish=meal.dish||init.dish;
-          const cookGroup=mealCookGroup[meal.id];
-          const gs=GROUP_STYLE[cookGroup];
-          const tip=TURKEY_TIPS[meal.id];
-          const isOpen=openId===meal.id;
+        {dishes.map(dish=>{
+          const slots=slotsByDish[dish.id]||[];
+          const tip=TURKEY_TIPS[dish.id];
+          const isOpen=openId===dish.id;
           return(
-            <div key={meal.id} className="rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white">
-              <button onClick={()=>setOpenId(isOpen?null:meal.id)}
+            <div key={dish.id} className="rounded-xl border border-slate-200 overflow-hidden shadow-sm bg-white">
+              <button onClick={()=>setOpenId(isOpen?null:dish.id)}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-slate-400 font-medium">{init.day} · {init.meal}</span>
-                    {gs&&<span className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ${gs.bg} ${gs.text} border ${gs.border}`}>Group {cookGroup}</span>}
+                    {slots.length===0&&<span className="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200 whitespace-nowrap">Not scheduled</span>}
+                    {slots.map((s,j)=>{
+                      const gs=GROUP_STYLE[s.cook];
+                      return(
+                        <span key={j} className="flex items-center gap-1.5">
+                          <span className="text-xs text-slate-400 font-medium">{s.day} · {s.meal}</span>
+                          {gs&&<span className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ${gs.bg} ${gs.text} border ${gs.border}`}>Group {s.cook}</span>}
+                        </span>
+                      );
+                    })}
                   </div>
-                  <div className="font-semibold text-slate-800 mt-0.5">{dish}</div>
-                  {note&&!isOpen&&<p className="text-xs text-amber-600 mt-0.5 truncate">⚠️ {note}</p>}
+                  <div className="font-semibold text-slate-800 mt-0.5">{dish.dish}</div>
+                  {dish.note&&!isOpen&&<p className="text-xs text-amber-600 mt-0.5 truncate">⚠️ {dish.note}</p>}
                 </div>
                 <span className="text-slate-400 text-xs flex-shrink-0">{isOpen?"▲ hide":"▼ recipe"}</span>
               </button>
               {isOpen&&(
                 <div className="border-t border-slate-100 px-4 py-4 space-y-4 fade-in">
-                  <p className="text-sm text-slate-600 italic">{desc}</p>
-                  {note&&(
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
-                      <span className="font-semibold">⚠️ Dietary notes:</span> {note}
-                    </div>
-                  )}
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">🍽️ Dish name</h4>
+                    <div className="font-semibold text-slate-800"><EditableText value={dish.dish} onChange={v=>update(dish.id,{dish:v},"name")} placeholder="Dish name"/></div>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">📄 Description</h4>
+                    <div className="text-sm text-slate-600 italic"><EditableText value={dish.desc} onChange={v=>update(dish.id,{desc:v},"description")} multiline placeholder="Short description..."/></div>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+                    <span className="font-semibold">⚠️ Dietary notes:</span> <EditableText value={dish.note||""} onChange={v=>update(dish.id,{note:v},"dietary note")} multiline placeholder="Add dietary note..."/>
+                  </div>
                   <div>
                     <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">📝 Recipe</h4>
-                    <div className="text-sm text-slate-700 whitespace-pre-line leading-relaxed bg-slate-50 rounded-lg p-3 border border-slate-100">{recipe}</div>
+                    <div className="text-sm text-slate-700 whitespace-pre-line leading-relaxed bg-slate-50 rounded-lg p-3 border border-slate-100">
+                      <EditableText value={dish.recipe||""} onChange={v=>update(dish.id,{recipe:v},"recipe")} multiline placeholder="Recipe steps..." className="whitespace-pre-line w-full"/>
+                    </div>
                   </div>
                   {tip&&(
                     <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs text-red-700 leading-relaxed">
                       {tip}
                     </div>
+                  )}
+                  {slots.length===0&&(
+                    <button onClick={()=>removeDish(dish.id)} className="text-xs text-red-500 border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50">🗑 Delete dish</button>
                   )}
                 </div>
               )}
@@ -1322,20 +1292,23 @@ function CoffeeTab({crew,setCrew,logChange}){
 }
 
 // ── Admin Modal ────────────────────────────────────────────────────────────
-function AdminModal({meals,setShopping,shoppingLocked,setShoppingLocked,mealsLocked,setMealsLocked,changelog,setChangelog,logChange,onClose,schedule,crew}){
+function AdminModal({dishes,setShopping,shoppingLocked,setShoppingLocked,changelog,setChangelog,logChange,onClose,schedule,crew}){
   const [unlocked,setUnlocked]=useState(false);
   const [pw,setPw]=useState("");
   const [err,setErr]=useState("");
   const [showPrompt,setShowPrompt]=useState(false);
   const tryUnlock=()=>{if(pw===ADMIN_PASS){setUnlocked(true);setErr("");}else{setErr("Wrong password");setPw("");}};
   const genPrompt=()=>{
-    // Meal plan with cook group from schedule (not stale meal.group)
-    const cookGroupMap=Object.fromEntries((schedule||INIT_SCHEDULE).filter(r=>r.mealId).map(r=>[r.mealId,r.cook]));
-    const ml=meals.map(m=>{
-      const cg=cookGroupMap[m.id]||m.group;
-      const note=m.note?`\n  Alternatives: ${m.note}`:"";
-      return `- ${m.day} ${m.meal} (Group ${cg} cooks): ${m.dish}\n  ${m.desc}${note}`;
-    }).join("\n");
+    // Meal plan: schedule slots + assigned dishes from the library
+    const dishMap=Object.fromEntries(dishes.map(d=>[d.id,d]));
+    const ml=(schedule||INIT_SCHEDULE).map((r,i)=>{
+      if(!r.mealId) return null;
+      const init=INIT_SCHEDULE[i]||{};
+      const d=dishMap[r.mealId];
+      if(!d) return null;
+      const note=d.note?`\n  Alternatives: ${d.note}`:"";
+      return `- ${r.day||init.day} ${r.meal||init.meal} (Group ${r.cook} cooks): ${d.dish}\n  ${d.desc}${note}`;
+    }).filter(Boolean).join("\n");
     // Dietary restrictions from CREW_PROFILES
     const rl=CREW_PROFILES.map(p=>{
       const parts=[];
@@ -1378,11 +1351,10 @@ Return ONLY a JSON array — no explanation, no markdown:
       localStorage.clear();
       if(sb){
         const defaults=[
-          {key:"meals",value:INIT_MEALS},
+          {key:"dishes",value:INIT_DISHES},
           {key:"shopping",value:INIT_SHOPPING},
           {key:"crew",value:INIT_CREW},
           {key:"schedule",value:INIT_SCHEDULE},
-          {key:"mealsLocked",value:true},
           {key:"shoppingLocked",value:true},
           {key:"changelog",value:[]},
         ];
@@ -1492,7 +1464,6 @@ Return ONLY a JSON array — no explanation, no markdown:
             <h4 className="font-semibold text-slate-700 mb-3">🔒 Tab Access</h4>
             <div className="space-y-2">
               {[
-                {label:"🍽️ Meal Plan", locked:mealsLocked, toggle:()=>{setMealsLocked(!mealsLocked);logChange("Admin",`Meals tab ${mealsLocked?"unlocked":"locked"}`);} },
                 {label:"🛒 Shopping List", locked:shoppingLocked, toggle:()=>{setShoppingLocked(!shoppingLocked);logChange("Admin",`Shopping tab ${shoppingLocked?"unlocked":"locked"}`);} },
               ].map(({label,locked,toggle})=>(
                 <div key={label} className="flex items-center justify-between bg-slate-50 rounded-xl border border-slate-200 px-4 py-3">
@@ -1521,12 +1492,11 @@ Return ONLY a JSON array — no explanation, no markdown:
 // ── App root ───────────────────────────────────────────────────────────────
 function App(){
   const [tab,setTab]=useState("schedule");
-  const [meals,setMeals]=useShared("meals",INIT_MEALS);
+  const [dishes,setDishes]=useShared("dishes",INIT_DISHES);
   const [shopping,setShopping]=useShared("shopping",INIT_SHOPPING);
   const [crew,setCrew]=useShared("crew",INIT_CREW);
   const [schedule,setSchedule]=useShared("schedule",INIT_SCHEDULE);
   const [shoppingLocked,setShoppingLocked]=useShared("shoppingLocked",true);
-  const [mealsLocked,setMealsLocked]=useShared("mealsLocked",true);
   const [changelog,setChangelog]=useShared("changelog",[]);
   const [showAdmin,setShowAdmin]=useState(false);
   const syncStatus=useSyncStatus();
@@ -1544,7 +1514,7 @@ function App(){
     return()=>window.removeEventListener("importShopping",h);
   },[]);
 
-  if(!meals||!shopping||!crew)return(
+  if(!dishes||!shopping||!crew||!schedule)return(
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center text-slate-500">
         <div className="text-4xl mb-3">⛵</div>
@@ -1554,13 +1524,13 @@ function App(){
     </div>
   );
 
-  const doneMeals=meals.filter(m=>m.done).length;
+  const mealRows=schedule.filter(r=>r.mealId);
+  const doneMeals=mealRows.filter(r=>r.done).length;
   const boughtItems=shopping.filter(s=>s.checked).length;
   const tabs=[
-    {id:"schedule",label:"📋 Schedule", badge:null},
+    {id:"schedule",label:"📋 Schedule", badge:doneMeals?`${doneMeals}/${mealRows.length}`:null},
     {id:"coffee",  label:"☕ Coffee",   badge:null},
     {id:"recipes", label:"📖 Recipes",  badge:null},
-    {id:"meals",   label:"🍽️ Meals",    badge:doneMeals?`${doneMeals}/${meals.length}`:null, locked:!!mealsLocked},
     {id:"shopping",label:"🛒 Shopping", badge:shoppingLocked?null:(boughtItems?`${boughtItems}/${shopping.length}`:null), locked:!!shoppingLocked},
   ];
   return(
@@ -1594,13 +1564,12 @@ function App(){
         </div>
       </div>
       <div className="pb-12">
-        {tab==="meals"   &&<MealsTab meals={meals} setMeals={setMeals} shopping={shopping} setShopping={setShopping} schedule={schedule||INIT_SCHEDULE} locked={!!mealsLocked} logChange={logChange}/>}
         {tab==="shopping"&&<ShoppingTab shopping={shopping} setShopping={setShopping} locked={!!shoppingLocked} logChange={logChange}/>}
-        {tab==="schedule"&&<ScheduleTab meals={meals} setMeals={setMeals} schedule={schedule||INIT_SCHEDULE} setSchedule={setSchedule} logChange={logChange}/>}
+        {tab==="schedule"&&<ScheduleTab dishes={dishes} schedule={schedule} setSchedule={setSchedule} shopping={shopping} setShopping={setShopping} logChange={logChange}/>}
         {tab==="coffee"  &&<CoffeeTab crew={crew} setCrew={setCrew} logChange={logChange}/>}
-        {tab==="recipes" &&<RecipesTab meals={meals} schedule={schedule||INIT_SCHEDULE}/>}
+        {tab==="recipes" &&<RecipesTab dishes={dishes} setDishes={setDishes} schedule={schedule} logChange={logChange}/>}
       </div>
-      {showAdmin&&<AdminModal meals={meals} setShopping={setShopping} shoppingLocked={!!shoppingLocked} setShoppingLocked={setShoppingLocked} mealsLocked={!!mealsLocked} setMealsLocked={setMealsLocked} changelog={changelog||[]} setChangelog={setChangelog} logChange={logChange} onClose={()=>setShowAdmin(false)} schedule={schedule||INIT_SCHEDULE} crew={crew||INIT_CREW}/>}
+      {showAdmin&&<AdminModal dishes={dishes} setShopping={setShopping} shoppingLocked={!!shoppingLocked} setShoppingLocked={setShoppingLocked} changelog={changelog||[]} setChangelog={setChangelog} logChange={logChange} onClose={()=>setShowAdmin(false)} schedule={schedule} crew={crew||INIT_CREW}/>}
     </div>
   );
 }
