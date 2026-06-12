@@ -1317,24 +1317,55 @@ function CoffeeTab({crew,setCrew,logChange}){
 }
 
 // ── Admin Modal ────────────────────────────────────────────────────────────
-function AdminModal({meals,setShopping,shoppingLocked,setShoppingLocked,mealsLocked,setMealsLocked,changelog,setChangelog,logChange,onClose}){
+function AdminModal({meals,setShopping,shoppingLocked,setShoppingLocked,mealsLocked,setMealsLocked,changelog,setChangelog,logChange,onClose,schedule,crew}){
   const [unlocked,setUnlocked]=useState(false);
   const [pw,setPw]=useState("");
   const [err,setErr]=useState("");
   const [showPrompt,setShowPrompt]=useState(false);
   const tryUnlock=()=>{if(pw===ADMIN_PASS){setUnlocked(true);setErr("");}else{setErr("Wrong password");setPw("");}};
   const genPrompt=()=>{
-    const ml=meals.map(m=>`- ${m.day} ${m.meal} (Group ${m.group}): ${m.dish}\n  ${m.desc}`).join("\n");
-    const rl=DIETARY_RULES.map(r=>`- ${r.name}: ${r.rules}${r.extra?` · ${r.extra}`:""}`).join("\n");
-    return `You are helping plan a sailing trip shopping list for 10 people, 7 nights, Fethiye Turkey (13-20 June 2026).
+    // Meal plan with cook group from schedule (not stale meal.group)
+    const cookGroupMap=Object.fromEntries((schedule||INIT_SCHEDULE).filter(r=>r.mealId).map(r=>[r.mealId,r.cook]));
+    const ml=meals.map(m=>{
+      const cg=cookGroupMap[m.id]||m.group;
+      const note=m.note?`\n  Alternatives: ${m.note}`:"";
+      return `- ${m.day} ${m.meal} (Group ${cg} cooks): ${m.dish}\n  ${m.desc}${note}`;
+    }).join("\n");
+    // Dietary restrictions from CREW_PROFILES
+    const rl=CREW_PROFILES.map(p=>{
+      const parts=[];
+      if(p.restrictions.length) parts.push(p.restrictions.map(r=>r.replace(/^[^\w]+ /,'')).join(', '));
+      if(p.foodDislikes&&p.foodDislikes!=='—') parts.push(`dislikes: ${p.foodDislikes}`);
+      return `- ${p.name} (${p.group==='—'?'Skipper':'Group '+p.group}): ${parts.length?parts.join(' · '):'no restrictions'}`;
+    }).join("\n");
+    // Coffee summary from crew state
+    const coffeeLines=crew.map(p=>{
+      const mainType=p.tea?'tea':(p.coffeeType||'none');
+      if(mainType==='none') return null;
+      const extras=(p.extras||[]).map(e=>`${e.cups} ${e.type}`).join(', ');
+      return `- ${p.name}: ${p.cups} ${mainType}/day${extras?', also '+extras:''}`;
+    }).filter(Boolean).join("\n");
+    return `You are helping plan a sailing trip shopping list for 10 people, 7 nights, Fethiye Turkey (13-20 June 2026). All ingredients must be available in Turkish markets (kasap for meat, local bazaar for produce).
 
-DIETARY RULES:\n${rl}
+CREW DIETARY RESTRICTIONS:
+${rl}
 
-MEAL PLAN (9 on-board cooking slots):\n${ml}
+MEAL PLAN (9 on-board cooking slots):
+${ml}
 
-NOTES: No pork in any dish. Fresh fish (Day 5) and shrimp (Day 6) bought locally — mark as FRESH. Mushrooms top-up in Ekincik (Day 3-4) — mark as TOP. Everything else Day 1 in Fethiye — mark as D1. Bruno (no seafood) always needs a simple alternative on fish/shrimp days.
+COFFEE & TEA (per person per day):
+${coffeeLines}
 
-Return ONLY a JSON array with this structure:
+SHOPPING RULES:
+- Mark as D1: buy in Fethiye on Day 1 (departure day)
+- Mark as FRESH: buy locally during the trip (fish in Ekincik/Gemiler Day 5, shrimp in Göcek Day 6)
+- Mark as TOP: top-up in Ekincik market (Day 3–4), e.g. mushrooms, fresh produce
+- No pork in any item
+- Include all breakfast items (self-service each morning: yogurt, fruit, granola, eggs, bread, cheese, ham, honey, jam, peanut butter)
+- Include pantry staples (olive oil, salt, pepper, spices) and coffee/tea station items
+- Include alternatives for Bruno (no seafood) on fish/shrimp days
+
+Return ONLY a JSON array — no explanation, no markdown:
 [{"cat":"emoji + category","item":"name","qty":number,"unit":"string","when":"D1|FRESH|TOP","usedIn":"string","notes":"string"}]`;
   };
   const resetAll=async()=>{
@@ -1564,7 +1595,7 @@ function App(){
         {tab==="coffee"  &&<CoffeeTab crew={crew} setCrew={setCrew} logChange={logChange}/>}
         {tab==="recipes" &&<RecipesTab meals={meals} schedule={schedule||INIT_SCHEDULE}/>}
       </div>
-      {showAdmin&&<AdminModal meals={meals} setShopping={setShopping} shoppingLocked={!!shoppingLocked} setShoppingLocked={setShoppingLocked} mealsLocked={!!mealsLocked} setMealsLocked={setMealsLocked} changelog={changelog||[]} setChangelog={setChangelog} logChange={logChange} onClose={()=>setShowAdmin(false)}/>}
+      {showAdmin&&<AdminModal meals={meals} setShopping={setShopping} shoppingLocked={!!shoppingLocked} setShoppingLocked={setShoppingLocked} mealsLocked={!!mealsLocked} setMealsLocked={setMealsLocked} changelog={changelog||[]} setChangelog={setChangelog} logChange={logChange} onClose={()=>setShowAdmin(false)} schedule={schedule||INIT_SCHEDULE} crew={crew||INIT_CREW}/>}
     </div>
   );
 }
