@@ -1523,6 +1523,30 @@ function App(){
     return()=>window.removeEventListener("importShopping",h);
   },[]);
 
+  // Patch dishes loaded from Supabase: fill any missing fields from INIT_DISHES (one-time migration)
+  useEffect(()=>{
+    if(!dishes) return;
+    const initMap=Object.fromEntries(INIT_DISHES.map(d=>[d.id,d]));
+    const needsPatch=dishes.some(d=>{
+      const init=initMap[d.id];
+      if(!init) return false;
+      return (!d.desc&&init.desc)||(!d.note&&init.note)||(!d.recipe&&init.recipe)||(!d.tip&&init.tip);
+    });
+    if(needsPatch){
+      setDishes(ds=>ds.map(d=>{
+        const init=initMap[d.id];
+        if(!init) return d;
+        return {
+          ...d,
+          desc: d.desc||init.desc||"",
+          note: d.note||init.note||"",
+          recipe: d.recipe||init.recipe||"",
+          tip: d.tip||init.tip||"",
+        };
+      }));
+    }
+  },[dishes]);
+
   if(!dishes||!shopping||!crew||!schedule)return(
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center text-slate-500">
