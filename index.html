@@ -634,7 +634,6 @@ function ShoppingTab({shopping,setShopping,locked,logChange}){
     </div>
   );
   const [filter,setFilter]=useState("all");
-  const [whenFilter,setWhenFilter]=useState("all");
   const [search,setSearch]=useState("");
   const [showAdd,setShowAdd]=useState(false);
   const [collapsed,setCollapsed]=useState({});
@@ -660,7 +659,7 @@ function ShoppingTab({shopping,setShopping,locked,logChange}){
   const visible=(item)=>{
     if(filter==="unchecked"&&item.checked)return false;
     if(filter==="checked"&&!item.checked)return false;
-    if(whenFilter!=="all"&&item.when!==whenFilter)return false;
+
     if(search&&!item.item.toLowerCase().includes(search.toLowerCase()))return false;
     return true;
   };
@@ -683,15 +682,6 @@ function ShoppingTab({shopping,setShopping,locked,logChange}){
           <option value="unchecked">To buy</option>
           <option value="checked">In cart</option>
         </select>
-        <div className="flex rounded-lg border border-slate-200 overflow-hidden">
-          <button onClick={()=>setWhenFilter("all")} className={`text-xs px-2.5 py-1.5 ${whenFilter==="all"?"bg-slate-700 text-white":"bg-white text-slate-500 hover:bg-slate-50"}`}>All</button>
-          {Object.entries(WHEN).map(([k,v])=>(
-            <button key={k} onClick={()=>setWhenFilter(whenFilter===k?"all":k)}
-              className={`text-xs px-2.5 py-1.5 border-l border-slate-200 whitespace-nowrap ${whenFilter===k?`${v.bg} ${v.text} font-semibold`:"bg-white text-slate-500 hover:bg-slate-50"}`}>
-              {v.short}
-            </button>
-          ))}
-        </div>
         <button onClick={()=>{setShopping(s=>s.map(x=>({...x,checked:false})));logChange("Shopping","All cart checkmarks cleared");}}
           className="text-xs border border-slate-200 text-slate-400 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 whitespace-nowrap">Clear ✓</button>
       </div>
@@ -736,7 +726,6 @@ function ShoppingTab({shopping,setShopping,locked,logChange}){
                         </div>
                         {item.usedIn&&<p className={`text-xs mt-0.5 truncate ${item.checked?'text-slate-300':'text-slate-400'}`}>{item.usedIn}</p>}
                       </div>
-                      {w&&<span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${w.bg} ${w.text}`}>{w.short}</span>}
                       <button onClick={()=>del(item.id)} className="text-slate-200 hover:text-red-400 text-lg leading-none flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="Remove">×</button>
                     </div>
                   );
